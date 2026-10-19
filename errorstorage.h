@@ -26,6 +26,8 @@ public:
 
     bool showPreviousFile();
     bool showNextFile();
+    bool showFileAt(qsizetype index);
+    bool hasErrorAt(qsizetype index) const;
     bool hasErrors() const;
     qsizetype currentFile() const;
     const Trip *sourceAt(int row) const;

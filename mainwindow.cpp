@@ -2,7 +2,10 @@
 #include "ui_mainwindow.h"
 
 #include <QApplication>
+#include <QComboBox>
 #include <QDialog>
+#include <QEvent>
+#include <QLineEdit>
 #include <QFile>
 #include <QFileDialog>
 #include <QFont>
@@ -11,6 +14,7 @@
 #include <QItemSelectionModel>
 #include <QLabel>
 #include <QMessageBox>
+#include <QSignalBlocker>
 #include <QSizePolicy>
 #include <QSplitter>
 #include <QTabWidget>
@@ -19,8 +23,8 @@
 #include <QPainter>
 #include <QStyle>
 #include <QStyledItemDelegate>
+#include <QTableView>
 #include <QTextLayout>
-#include <QTreeView>
 
 #include <QtMath>
 
@@ -30,6 +34,53 @@
 namespace {
 
 constexpr int kGridThickness = 2;
+
+class CenteredComboDelegate : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override
+    {
+        QStyledItemDelegate::initStyleOption(option, index);
+        option->displayAlignment = Qt::AlignCenter;
+    }
+};
+
+class ComboPopupOnClick : public QObject
+{
+public:
+    explicit ComboPopupOnClick(QComboBox *combo)
+        : QObject(combo)
+        , m_combo(combo)
+    {
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (event->type() == QEvent::MouseButtonPress && m_combo->isEnabled()) {
+            m_combo->showPopup();
+            return true;
+        }
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    QComboBox *m_combo;
+};
+
+void centerFileCombo(QComboBox *combo)
+{
+    combo->setEditable(true);
+    combo->setInsertPolicy(QComboBox::NoInsert);
+    combo->setItemDelegate(new CenteredComboDelegate(combo));
+    QLineEdit *edit = combo->lineEdit();
+    edit->setReadOnly(true);
+    edit->setAlignment(Qt::AlignCenter);
+    edit->setFrame(false);
+    edit->installEventFilter(new ComboPopupOnClick(combo));
+}
 
 class WrappingItemDelegate : public QStyledItemDelegate
 {
@@ -80,7 +131,7 @@ public:
             return base;
 
         QTextLayout layout(opt.text, opt.font);
-        layoutText(layout, qMax(1, textWidthFor(opt) - kGridThickness));
+        layoutText(layout, textWidthFor(opt));
         return QSize(base.width(), qMax(base.height(), qCeil(layout.boundingRect().height()) + 8 + kGridThickness));
     }
 
@@ -89,10 +140,10 @@ private:
     {
         const QWidget *widget = option.widget;
         QStyle *style = widget ? widget->style() : QApplication::style();
-        const int textWidth = style->subElementRect(QStyle::SE_ItemViewItemText, &option, widget).width();
-        if (textWidth > 0)
-            return textWidth;
-        return qMax(1, option.rect.width());
+        int textWidth = style->subElementRect(QStyle::SE_ItemViewItemText, &option, widget).width();
+        if (textWidth <= 1)
+            textWidth = option.rect.width();
+        return qMax(1, textWidth - kGridThickness);
     }
 
     static void layoutText(QTextLayout &layout, int width)
@@ -135,32 +186,38 @@ MainWindow::MainWindow(QWidget *parent)
     ui->mainSplitter->setStretchFactor(1, 1);
     ui->mainSplitter->handle(1)->setEnabled(false);
     ui->leftLayout->setStretch(ui->leftLayout->indexOf(ui->tripTable), 1);
-    ui->rightLayout->setStretch(ui->rightLayout->indexOf(ui->errorTree), 1);
+    ui->rightLayout->setStretch(ui->rightLayout->indexOf(ui->errorTable), 1);
     ui->tripTable->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    ui->errorTree->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    ui->errorTable->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     ui->tripTable->setShowGrid(false);
+    ui->errorTable->setShowGrid(false);
     ui->tripTable->setModel(m_tripmanager.storage());
-    ui->errorTree->setModel(m_tripmanager.errorStorage());
+    ui->errorTable->setModel(m_tripmanager.errorStorage());
     ui->reportTable->setModel(m_tripmanager.reporter());
     ui->reportTable->setWordWrap(true);
     ui->reportTable->setTextElideMode(Qt::TextElideMode::ElideNone);
     ui->reportTabLayout->setStretch(0, 1);
     configureTripView(ui->tripTable, ui->tripTable->horizontalHeader(), false);
-    configureTripView(ui->errorTree, ui->errorTree->header(), true);
+    configureTripView(ui->errorTable, ui->errorTable->horizontalHeader(), true);
     configureTripView(ui->reportTable, ui->reportTable->horizontalHeader(), true);
     ui->tripTable->verticalHeader()->setDefaultAlignment(Qt::AlignCenter);
     ui->tripTable->verticalHeader()->setStyleSheet(ui->tripTable->horizontalHeader()->styleSheet());
     ui->tripTable->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    ui->errorTable->verticalHeader()->setDefaultAlignment(Qt::AlignCenter);
+    ui->errorTable->verticalHeader()->setStyleSheet(ui->errorTable->horizontalHeader()->styleSheet());
+    ui->errorTable->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->reportTable->verticalHeader()->setDefaultAlignment(Qt::AlignCenter);
     ui->reportTable->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    centerFileCombo(ui->currentFileCombo);
+    centerFileCombo(ui->currentErrorFileCombo);
     showTripColumns(ui->tripTable);
-    showTripColumns(ui->errorTree);
+    showTripColumns(ui->errorTable);
     fitReportColumns();
     connect(m_tripmanager.storage(), &QAbstractItemModel::modelReset, this, [this] {
         showTripColumns(ui->tripTable);
     });
     connect(m_tripmanager.errorStorage(), &QAbstractItemModel::modelReset, this, [this] {
-        showTripColumns(ui->errorTree);
+        showTripColumns(ui->errorTable);
     });
     connect(m_tripmanager.reporter(), &QAbstractItemModel::modelReset, this, [this] {
         fitReportColumns();
@@ -191,12 +248,16 @@ MainWindow::MainWindow(QWidget *parent)
             &m_tripmanager, &TripManager::showPreviousErrorFile);
     connect(ui->nextErrorButton, &QPushButton::clicked,
             &m_tripmanager, &TripManager::showNextErrorFile);
+    connect(ui->currentFileCombo, &QComboBox::activated,
+            this, &MainWindow::showFileFromCombo);
+    connect(ui->currentErrorFileCombo, &QComboBox::activated,
+            this, &MainWindow::showErrorFileFromCombo);
     connect(&m_tripmanager, &TripManager::currentErrorFileChanged,
             this, &MainWindow::showCurrentErrorFile);
-    connect(ui->errorTree, &QTreeView::clicked, this, [this](const QModelIndex &index) {
+    connect(ui->errorTable, &QTableView::clicked, this, [this](const QModelIndex &index) {
         showSelectedError(index, {});
     });
-    connect(ui->errorTree->selectionModel(), &QItemSelectionModel::currentRowChanged,
+    connect(ui->errorTable->selectionModel(), &QItemSelectionModel::currentRowChanged,
             this, &MainWindow::showSelectedError);
     connect(ui->mainTabs, &QTabWidget::currentChanged, this, [this] {
         equalizePanes();
@@ -258,10 +319,6 @@ void MainWindow::configureTripView(QAbstractItemView *view, QHeaderView *header,
     connect(header, &QHeaderView::sectionResized, view, [view] {
         if (auto *table = qobject_cast<QTableView *>(view))
             table->resizeRowsToContents();
-        else if (auto *tree = qobject_cast<QTreeView *>(view)) {
-            tree->setUniformRowHeights(true);
-            tree->setUniformRowHeights(false);
-        }
     });
 }
 
@@ -294,11 +351,6 @@ void MainWindow::showTripColumns(QTableView *view)
 {
     applyVisibleColumns(view, view->horizontalHeader());
     view->resizeRowsToContents();
-}
-
-void MainWindow::showTripColumns(QTreeView *view)
-{
-    applyVisibleColumns(view, view->header());
 }
 
 void MainWindow::fitReportColumns()
@@ -389,21 +441,71 @@ void MainWindow::showLoadResult(const QVector<QVector<Trip>> &trips)
 
 void MainWindow::showCurrentFile(const QString &fileName, bool hasPrevious, bool hasNext)
 {
-    ui->currentFileLabel->setText(fileName);
+    Q_UNUSED(fileName);
+    QComboBox *combo = ui->currentFileCombo;
+    const QSignalBlocker blocker(combo);
+    combo->clear();
+    const TripStorage *storage = m_tripmanager.storage();
+    const QVector<QVector<Trip>> &trips = storage->trips();
+    const QVector<TripMetaData> &metadata = storage->fileMetadata();
+    for (qsizetype file = 0; file < trips.size(); ++file) {
+        QString name = storage->fileNameAt(file);
+        if (name.isEmpty() && file < metadata.size())
+            name = metadata.at(file).m_filename;
+        combo->addItem(name, int(file));
+        combo->setItemData(combo->count() - 1, int(Qt::AlignCenter), Qt::TextAlignmentRole);
+    }
+    combo->setCurrentIndex(combo->findData(int(storage->currentFile())));
+    if (QLineEdit *edit = combo->lineEdit())
+        edit->setAlignment(Qt::AlignCenter);
+    combo->setEnabled(combo->count() > 0);
     ui->previousFileButton->setEnabled(hasPrevious);
     ui->nextFileButton->setEnabled(hasNext);
-    ui->leftMetadataWidget->setMetadata(m_tripmanager.storage()->currentMetadata());
+    ui->leftMetadataWidget->setMetadata(storage->currentMetadata());
     updateActionButtons();
 }
 
 void MainWindow::showCurrentErrorFile(const QString &fileName, bool hasPrevious, bool hasNext)
 {
-    ui->currentErrorFileLabel->setText(fileName);
+    Q_UNUSED(fileName);
+    QComboBox *combo = ui->currentErrorFileCombo;
+    const QSignalBlocker blocker(combo);
+    combo->clear();
+    const TripStorage *storage = m_tripmanager.storage();
+    const ErrorStorage *errors = m_tripmanager.errorStorage();
+    const QVector<QVector<Trip>> &trips = storage->trips();
+    const QVector<TripMetaData> &metadata = storage->fileMetadata();
+    for (qsizetype file = 0; file < trips.size(); ++file) {
+        if (!errors->hasErrorAt(file))
+            continue;
+        QString name = storage->fileNameAt(file);
+        if (name.isEmpty() && file < metadata.size())
+            name = metadata.at(file).m_filename;
+        combo->addItem(name, int(file));
+        combo->setItemData(combo->count() - 1, int(Qt::AlignCenter), Qt::TextAlignmentRole);
+    }
+    combo->setCurrentIndex(combo->findData(int(errors->currentFile())));
+    if (QLineEdit *edit = combo->lineEdit())
+        edit->setAlignment(Qt::AlignCenter);
+    combo->setEnabled(combo->count() > 0);
     ui->previousErrorButton->setEnabled(hasPrevious);
     ui->nextErrorButton->setEnabled(hasNext);
-    ui->rightMetadataWidget->setMetadata(
-        m_tripmanager.storage()->metadataAt(m_tripmanager.errorStorage()->currentFile()));
+    ui->rightMetadataWidget->setMetadata(storage->metadataAt(errors->currentFile()));
     updateActionButtons();
+}
+
+void MainWindow::showFileFromCombo(int index)
+{
+    if (index < 0)
+        return;
+    m_tripmanager.showFile(ui->currentFileCombo->itemData(index).toInt());
+}
+
+void MainWindow::showErrorFileFromCombo(int index)
+{
+    if (index < 0)
+        return;
+    m_tripmanager.showErrorFile(ui->currentErrorFileCombo->itemData(index).toInt());
 }
 
 void MainWindow::updateActionButtons()
@@ -417,9 +519,14 @@ void MainWindow::updateActionButtons()
     const QString leftName = m_tripmanager.storage()->currentFileName();
     const QString rightName = m_tripmanager.storage()->fileNameAt(
         m_tripmanager.errorStorage()->currentFile());
-    ui->currentFileLabel->setStyleSheet(leftName == rightName
-                                            ? QString()
-                                            : QStringLiteral("color: red; font-weight: bold;"));
+    const QString centered = QStringLiteral(
+        "QComboBox QLineEdit { qproperty-alignment: AlignCenter; background: transparent; border: none; }");
+    ui->currentFileCombo->setStyleSheet(leftName == rightName
+                                            ? centered
+                                            : QStringLiteral("QComboBox, QComboBox QLineEdit { color: red; font-weight: bold; } ")
+                                                  + centered);
+    if (QLineEdit *edit = ui->currentFileCombo->lineEdit())
+        edit->setAlignment(Qt::AlignCenter);
 }
 
 void MainWindow::checkLoaded()
@@ -432,12 +539,12 @@ void MainWindow::checkLoaded()
         return;
     }
 
-    const QModelIndex firstError = ui->errorTree->model()->index(0, 0);
+    const QModelIndex firstError = ui->errorTable->model()->index(0, 0);
     if (!firstError.isValid())
         return;
-    ui->errorTree->selectionModel()->setCurrentIndex(
+    ui->errorTable->selectionModel()->setCurrentIndex(
         firstError, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-    ui->errorTree->scrollTo(firstError, QAbstractItemView::ScrollHint::PositionAtCenter);
+    ui->errorTable->scrollTo(firstError, QAbstractItemView::ScrollHint::PositionAtCenter);
 }
 
 void MainWindow::showSelectedError(const QModelIndex &current, const QModelIndex &)
@@ -445,11 +552,7 @@ void MainWindow::showSelectedError(const QModelIndex &current, const QModelIndex
     if (!current.isValid())
         return;
 
-    QModelIndex rowIndex = current;
-    while (rowIndex.parent().isValid())
-        rowIndex = rowIndex.parent();
-
-    const Trip *source = m_tripmanager.errorStorage()->sourceAt(rowIndex.row());
+    const Trip *source = m_tripmanager.errorStorage()->sourceAt(current.row());
     const int row = m_tripmanager.focusTrip(source);
     if (row < 0)
         return;

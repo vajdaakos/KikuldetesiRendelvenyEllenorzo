@@ -29,6 +29,8 @@ public slots:
     void showNextFile();
     void showPreviousErrorFile();
     void showNextErrorFile();
+    void showFile(int index);
+    void showErrorFile(int index);
     void checkLoaded();
     void exportErrors();
     int focusTrip(const Trip *source);

@@ -14,16 +14,16 @@ A betöltés után az állapotsor mutatja a feldolgozott PDF-ek és az utak szá
 
 Az **Ellenőrzés** fül két, egyforma méretű panelből áll.
 
-A bal panel a betöltött utakat mutatja, egyszerre egy fájlt. Az **Előző** és a **Következő** gombbal lehet a fájlok között lépni. A táblázat oszlopai: azonosító, honnan, hova, távolság és összesen. A hosszú szövegek több sorba törnek.
+A bal panel a betöltött utakat mutatja, egyszerre egy fájlt. Az **Előző** és a **Következő** gombbal, vagy a közöttük lévő legördülő listából lehet a fájlok között váltani. A táblázat oszlopai: azonosító, honnan, hova, távolság és összesen. A hosszú szövegek több sorba törnek.
 
 A **Betöltöttek ellenőrzése** gomb csak akkor aktív, ha van betöltött út. Az ellenőrzés után:
 
 - ha nincs hiba, egy ablak közli ezt;
 - ha van hiba, a jobb panel az első hibás fájl első hibás sorára ugrik.
 
-A jobb panel csak a hibás utakat mutatja. Az **Előző** és a **Következő** gomb a hibátlan fájlokat kihagyja. Egy hibás sorra kattintva a bal panel arra a fájlra és arra a sorra ugrik, majd odagörget.
+A jobb panel csak a hibás utakat mutatja. Az **Előző** és a **Következő** gomb, valamint a közöttük lévő legördülő lista a hibátlan fájlokat kihagyja. Egy hibás sorra kattintva a bal panel arra a fájlra és arra a sorra ugrik, majd odagörget.
 
-Ha a két panel nem ugyanazt a fájlt mutatja, a bal panel **Előző** és **Következő** gombja közötti fájlnév piros és félkövér.
+Ha a két panel nem ugyanazt a fájlt mutatja, a bal panel **Előző** és **Következő** gombja közötti legördülő lista piros és félkövér.
 
 ## Hibariport
 

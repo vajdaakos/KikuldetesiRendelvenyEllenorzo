@@ -16,7 +16,6 @@ class QDialog;
 class QHeaderView;
 class QModelIndex;
 class QTableView;
-class QTreeView;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -44,12 +43,13 @@ private slots:
     void showCurrentErrorFile(const QString &fileName, bool hasPrevious, bool hasNext);
     void showSelectedError(const QModelIndex &current, const QModelIndex &previous);
     void checkLoaded();
+    void showFileFromCombo(int index);
+    void showErrorFileFromCombo(int index);
     void showHelp();
     void showAbout();
 
 private:
     void showTripColumns(QTableView *view);
-    void showTripColumns(QTreeView *view);
     void fitReportColumns();
     void configureTripView(QAbstractItemView *view, QHeaderView *header, bool boldHeader);
     void equalizePanes();

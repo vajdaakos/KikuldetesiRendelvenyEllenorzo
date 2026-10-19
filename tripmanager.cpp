@@ -58,6 +58,18 @@ void TripManager::showNextErrorFile()
         announceCurrentErrorFile();
 }
 
+void TripManager::showFile(int index)
+{
+    if (m_storage.showFileAt(index))
+        announceCurrentFile();
+}
+
+void TripManager::showErrorFile(int index)
+{
+    if (m_errorstorage.showFileAt(index))
+        announceCurrentErrorFile();
+}
+
 int TripManager::focusTrip(const Trip *source)
 {
     if (!source)

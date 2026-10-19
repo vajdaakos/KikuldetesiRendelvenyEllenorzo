@@ -92,6 +92,20 @@ bool ErrorStorage::showNextFile()
     return true;
 }
 
+bool ErrorStorage::showFileAt(qsizetype index)
+{
+    if (!fileHasError(index))
+        return false;
+    if (index != m_currentFile)
+        showFile(index);
+    return true;
+}
+
+bool ErrorStorage::hasErrorAt(qsizetype index) const
+{
+    return fileHasError(index);
+}
+
 qsizetype ErrorStorage::currentFile() const
 {
     return m_currentFile;
