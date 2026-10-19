@@ -1,0 +1,4 @@
+**/*.pdf
+.qtcreator
+build/**
+report/**
