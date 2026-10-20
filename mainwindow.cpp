@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "version.h"
 
 #include <QApplication>
 #include <QComboBox>
@@ -396,8 +397,11 @@ void MainWindow::showAbout()
     box.setTextFormat(Qt::RichText);
     box.setText(
         tr("<p align=\"center\"><b>Kiküldetési Rendelvény Ellenőrző</b></p>"
-           "<p align=\"center\">v 0.9.0</p>"
-           "<p align=\"center\">Vajda Ákos Péter<br>vajdaakos@alu-fon.hu</p>"));
+           "<p align=\"center\">v %1.%2.%3</p>"
+           "<p align=\"center\">Vajda Ákos Péter<br>vajdaakos@alu-fon.hu</p>")
+            .arg(MAJOR)
+            .arg(MINOR)
+            .arg(PATCH));
     const QPixmap icon = windowIcon().pixmap(64, 64);
     if (!icon.isNull())
         box.setIconPixmap(icon);

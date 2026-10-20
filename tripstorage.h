@@ -8,6 +8,8 @@
 #include <QString>
 #include <QVector>
 
+class ErrorStorage;
+
 class TripStorage : public QRangeModel
 {
     Q_OBJECT
@@ -15,8 +17,13 @@ class TripStorage : public QRangeModel
 public:
     explicit TripStorage(QObject *parent = nullptr);
 
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+    void multiData(const QModelIndex &index, QModelRoleDataSpan roleDataSpan) const override;
     QVariant headerData(int section, Qt::Orientation orientation,
                         int role = Qt::DisplayRole) const override;
+
+    void setErrorStorage(const ErrorStorage *errors);
+    void refreshErrorMarks();
 
     void setTrips(const QVector<QVector<Trip>> &trips, const QVector<TripMetaData> &metadata);
     bool showPreviousFile();
@@ -37,7 +44,9 @@ public:
 private:
     void showFile(qsizetype index);
     void applyCurrentMetadata();
+    bool isErrorRow(int row) const;
 
+    const ErrorStorage *m_errors = nullptr;
     QVector<QVector<Trip>> m_trips;
     QVector<Trip> m_rows;
     QVector<TripMetaData> m_file_metadata;

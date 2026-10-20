@@ -2,7 +2,7 @@
 
 A felhasználói leírás a [README.md](README.md). Ez a fájl a kód szerkezetét, az adatfolyamot és azokat a helyeket írja le, amelyeket együtt kell módosítani.
 
-A program egy könyvtár PDF-jeiből kiküldetési rendelvényeket olvas, az utakat táblában mutatja, és hibának jelöli azokat, amelyeknél a kiindulópont és a cél megegyezik, az összköltség pedig nagyobb nullánál. Az ablak címe **KR**. A CMake-cél és a futtatható állomány neve `KrEllenorzo`. A névjegyben szereplő teljes név „Kiküldetési Rendelvény Ellenőrző”, a verziószöveg `v 0.9.0`. A verzió csak a névjegy szövegében van, a CMake-projektnek nincs `PROJECT_VERSION` értéke.
+A program egy könyvtár PDF-jeiből kiküldetési rendelvényeket olvas, az utakat táblában mutatja, és hibának jelöli azokat, amelyeknél a kiindulópont és a cél megegyezik, az összköltség pedig nagyobb nullánál. Az ablak címe és a névjegyben szereplő név is **Kiküldetési Rendelvény Ellenőrző**. A CMake-cél és a futtatható állomány neve `KrEllenorzo`. A verziószöveg `v 0.9.0`. A verziószámot a `version.h` `inline constexpr uint` típusú `MAJOR`, `MINOR` és `PATCH` értéke adja, ebből állítja össze a névjegy. A CMake-projektnek nincs `PROJECT_VERSION` értéke.
 
 ## Fordítás
 
@@ -120,6 +120,7 @@ classDiagram
     TripStorage "1" o-- "0..*" TripMetaData : m_file_metadata
     ErrorStorage --> Trip : const Trip*
     ErrorStorage --> TripMetaData : const TripMetaData*
+    TripStorage --> ErrorStorage : m_errors, hibás sorok színe
     TripMetadataWidget --> TripMetaData : setMetadata
     TripChecker ..> Trip : ellenőrzi
     ErrorReportCreator ..> Trip : exportálja
@@ -203,6 +204,7 @@ sequenceDiagram
     Manager->>Ellenőrző: check(utak, hibák)
     Ellenőrző->>Utak: a Trip elemek címe
     Manager->>Hibák: endUpdate()
+    Manager->>Utak: refreshErrorMarks()
     Manager-->>Ablak: currentErrorFileChanged
     alt nincs hiba
         Ablak-->>Felhasználó: Nincs hiba
@@ -343,7 +345,7 @@ Az `ErrorStorage::m_triperrors` típusa `QVector<QVector<const Trip *>>`. A muta
 
 Az `ErrorStorage::m_file_metadata` konstans mutatókat tárol a `TripStorage` metaadat-vektorába. A `setTrips` először törli a hibákat, utána lecseréli az utakat, és csak ezután állítja be a mutatókat. Így a mutatók nem a signal argumentumának ideiglenes vektorába mutatnak. Új betöltés előtt a `clear()` eldobja a mutatókat és a hibasorokat. Ellenőrzés után a forráskonténert nem szabad átrendezni, mert a hibamutatók érvénytelenné válnának.
 
-A `TripChecker::check` a kimeneti vektort a fájlok számával azonos méretűre állítja, fájlonként üres belső vektorral. Egy út akkor hiba, ha `m_from == m_to` és `m_total_cost > 0`. A `checkLoaded` a `beginUpdate()` és az `endUpdate()` között hívja. A hívásnak szinkronnak kell maradnia: az `endUpdate` a már kitöltött vektorból építi a látható sorokat, és az első nem üres hibafájlra áll. A jobb előző és következő gomb, valamint a `currentErrorFileCombo` a nullmutatóktól és az üres fájloktól eltekintve lép. A lista választása a `TripManager::showErrorFile()` slotot hívja. A jobb fájlnév a `TripStorage::fileNameAt` eredménye, üres útjú fájlnál a metaadat `m_filename` mezője.
+A `TripChecker::check` a kimeneti vektort a fájlok számával azonos méretűre állítja, fájlonként üres belső vektorral. Egy út akkor hiba, ha `m_from == m_to` és `m_total_cost > 0`. A `checkLoaded` a `beginUpdate()` és az `endUpdate()` között hívja. A hívásnak szinkronnak kell maradnia: az `endUpdate` a már kitöltött vektorból építi a látható sorokat, és az első nem üres hibafájlra áll. Utána a `TripStorage::refreshErrorMarks()` `dataChanged` signalt küld a bal tábla soraira. A `TripStorage` a `TripManager` konstruktorában kapja meg az `ErrorStorage` konstans mutatóját. A nézet a szerepeket a `multiData()` függvényen kéri. A `QRangeModel::multiData()` nem hívja a virtuális `data()` függvényt, ezért a színezést a `TripStorage::multiData()` írja a `BackgroundRole` és a `ForegroundRole` mezőbe, `QBrush` értékként. A `data()` ugyanezt adja vissza. A döntés az `ErrorStorage::isError()` eredménye: a hibás sor háttere piros, a szövege fekete. Az összevetés a `m_trips` elemének címével történik, nem a megjelenített másolatéval. Fájlváltáskor a modell-reset újraszámolja a színeket, új betöltéskor a hibák törlése eltünteti őket. A jobb előző és következő gomb, valamint a `currentErrorFileCombo` a nullmutatóktól és az üres fájloktól eltekintve lép. A lista választása a `TripManager::showErrorFile()` slotot hívja. A jobb fájlnév a `TripStorage::fileNameAt` eredménye, üres útjú fájlnál a metaadat `m_filename` mezője.
 
 A jobb tábla `clicked` és `currentRowChanged` signalja is a `showSelectedError` slotot hívja. A `currentRowChanged` az aktuális sor újbóli kattintására nem fut le, a `clicked` igen. A `focusTrip` megkeresi a mutatót, szükség esetén fájlt vált a bal panelen, és visszaadja a sorindexet. A felület kijelöli a sort, és középre görgeti.
 
@@ -380,7 +382,7 @@ A záró ablak ettől a listától függ.
 
 Az [icons.qrc](icons.qrc) a `:/icons/app.png` ikont és a `:/help/readme.md` aliast tartalmazza. Az alias a [README.md](README.md) fájlra mutat, ezért a súgó a használati leírással együtt frissül, ha a program újrafordul. Az **F1** és a **Súgó** menü ugyanazt a nem modális ablakot nyitja. A `QTextBrowser::setMarkdown` rajzolja ki. Az ablak a bezárásig megmarad, ismételt megnyitáskor előre kerül.
 
-A **Névjegy** a súgó alatt, elválasztó után van. A szöveg középre igazított: a terméknév, a `v 0.9.0`, a készítő neve és az e-mail-címe. A doboz a főablak ikonját mutatja.
+A **Névjegy** a súgó alatt, elválasztó után van. A szöveg középre igazított: a terméknév, a `version.h` értékeiből összeállított `v MAJOR.MINOR.PATCH`, a készítő neve és az e-mail-címe. A doboz a főablak ikonját mutatja.
 
 ## Tudatosan vállalt kompromisszumok
 

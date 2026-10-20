@@ -6,6 +6,7 @@ TripManager::TripManager(QObject *parent)
     , m_errorstorage(this)
     , m_reporter(this)
 {
+    m_storage.setErrorStorage(&m_errorstorage);
 }
 
 TripStorage *TripManager::storage()
@@ -97,6 +98,7 @@ void TripManager::checkLoaded()
     m_errorstorage.beginUpdate();
     m_tripchecker.check(m_storage.trips(), m_errorstorage.errors());
     m_errorstorage.endUpdate();
+    m_storage.refreshErrorMarks();
     announceCurrentErrorFile();
 }
 

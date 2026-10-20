@@ -1,6 +1,8 @@
 #include "tripstorage.h"
 #include "columnheaders.h"
+#include "errorstorage.h"
 
+#include <QBrush>
 #include <QFileInfo>
 
 #include <functional>
@@ -8,6 +10,53 @@
 TripStorage::TripStorage(QObject *parent)
     : QRangeModel(std::ref(m_rows), parent)
 {
+}
+
+QVariant TripStorage::data(const QModelIndex &index, int role) const
+{
+    if (index.isValid() && isErrorRow(index.row())) {
+        if (role == Qt::BackgroundRole)
+            return QBrush(QColor(255, 120, 120));
+        if (role == Qt::ForegroundRole)
+            return QBrush(Qt::black);
+    }
+    return QRangeModel::data(index, role);
+}
+
+void TripStorage::multiData(const QModelIndex &index, QModelRoleDataSpan roleDataSpan) const
+{
+    QRangeModel::multiData(index, roleDataSpan);
+    if (!index.isValid() || !isErrorRow(index.row()))
+        return;
+    for (QModelRoleData &roleData : roleDataSpan) {
+        if (roleData.role() == Qt::BackgroundRole)
+            roleData.setData(QBrush(QColor(255, 120, 120)));
+        else if (roleData.role() == Qt::ForegroundRole)
+            roleData.setData(QBrush(Qt::black));
+    }
+}
+
+void TripStorage::setErrorStorage(const ErrorStorage *errors)
+{
+    m_errors = errors;
+}
+
+void TripStorage::refreshErrorMarks()
+{
+    if (m_rows.isEmpty())
+        return;
+    emit dataChanged(index(0, 0), index(int(m_rows.size()) - 1, columnCount() - 1),
+                     {Qt::BackgroundRole, Qt::ForegroundRole});
+}
+
+bool TripStorage::isErrorRow(int row) const
+{
+    if (!m_errors || m_currentFile < 0 || m_currentFile >= m_trips.size())
+        return false;
+    const QVector<Trip> &fileTrips = m_trips.at(m_currentFile);
+    if (row < 0 || row >= fileTrips.size())
+        return false;
+    return m_errors->isError(m_currentFile, &fileTrips.at(row));
 }
 
 QVariant TripStorage::headerData(int section, Qt::Orientation orientation, int role) const

@@ -106,6 +106,13 @@ bool ErrorStorage::hasErrorAt(qsizetype index) const
     return fileHasError(index);
 }
 
+bool ErrorStorage::isError(qsizetype file, const Trip *trip) const
+{
+    if (!trip || file < 0 || file >= m_triperrors.size())
+        return false;
+    return m_triperrors.at(file).contains(trip);
+}
+
 qsizetype ErrorStorage::currentFile() const
 {
     return m_currentFile;

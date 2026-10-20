@@ -77,6 +77,7 @@ qt_add_executable(KrEllenorzo
     errorstorage.h
     errorstorage.cpp
     icons.qrc
+    version.h
 )
 
 if(WIN32)

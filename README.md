@@ -1,4 +1,4 @@
-# KR
+# Kiküldetési Rendelvény Ellenőrző
 
 A program kiküldetési rendelvény PDF-eket tölt be egy könyvtárból, megmutatja az utakat, és kiszűri azokat, amelyeknél a kiindulópont és a cél megegyezik, az összköltség pedig nagyobb nullánál.
 
@@ -19,7 +19,7 @@ A bal panel a betöltött utakat mutatja, egyszerre egy fájlt. Az **Előző** �
 A **Betöltöttek ellenőrzése** gomb csak akkor aktív, ha van betöltött út. Az ellenőrzés után:
 
 - ha nincs hiba, egy ablak közli ezt;
-- ha van hiba, a jobb panel az első hibás fájl első hibás sorára ugrik.
+- ha van hiba, a jobb panel az első hibás fájl első hibás sorára ugrik, a bal panelen pedig a hibás sorok háttere piros.
 
 A jobb panel csak a hibás utakat mutatja. Az **Előző** és a **Következő** gomb, valamint a közöttük lévő legördülő lista a hibátlan fájlokat kihagyja. Egy hibás sorra kattintva a bal panel arra a fájlra és arra a sorra ugrik, majd odagörget.
 
