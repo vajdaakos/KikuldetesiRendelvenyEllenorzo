@@ -74,7 +74,7 @@ void TripStorage::setTrips(const QVector<QVector<Trip>> &trips, const QVector<Tr
     beginResetModel();
     m_trips = trips;
     m_file_metadata = metadata;
-    m_currentFile = m_trips.isEmpty() ? -1 : 0;
+    m_currentFile = nextTripFile(-1);
     m_rows = m_currentFile < 0 ? QVector<Trip>{} : m_trips.at(m_currentFile);
     applyCurrentMetadata();
     endResetModel();
@@ -82,23 +82,25 @@ void TripStorage::setTrips(const QVector<QVector<Trip>> &trips, const QVector<Tr
 
 bool TripStorage::showPreviousFile()
 {
-    if (m_currentFile <= 0)
+    const qsizetype file = previousTripFile();
+    if (file < 0)
         return false;
-    showFile(m_currentFile - 1);
+    showFile(file);
     return true;
 }
 
 bool TripStorage::showNextFile()
 {
-    if (m_currentFile < 0 || m_currentFile + 1 >= m_trips.size())
+    const qsizetype file = nextTripFile(m_currentFile);
+    if (file < 0)
         return false;
-    showFile(m_currentFile + 1);
+    showFile(file);
     return true;
 }
 
 bool TripStorage::showFileAt(qsizetype index)
 {
-    if (index < 0 || index >= m_trips.size())
+    if (!hasTripsAt(index))
         return false;
     if (index != m_currentFile)
         showFile(index);
@@ -144,14 +146,37 @@ QString TripStorage::fileNameAt(qsizetype index) const
     return QFileInfo(m_trips.at(index).constFirst().m_sourcefile).fileName();
 }
 
+bool TripStorage::hasTripsAt(qsizetype index) const
+{
+    return index >= 0 && index < m_trips.size() && !m_trips.at(index).isEmpty();
+}
+
 bool TripStorage::hasPrevious() const
 {
-    return m_currentFile > 0;
+    return previousTripFile() >= 0;
 }
 
 bool TripStorage::hasNext() const
 {
-    return m_currentFile >= 0 && m_currentFile + 1 < m_trips.size();
+    return m_currentFile >= 0 && nextTripFile(m_currentFile) >= 0;
+}
+
+qsizetype TripStorage::previousTripFile() const
+{
+    for (qsizetype file = m_currentFile - 1; file >= 0; --file) {
+        if (hasTripsAt(file))
+            return file;
+    }
+    return -1;
+}
+
+qsizetype TripStorage::nextTripFile(qsizetype after) const
+{
+    for (qsizetype file = after + 1; file < m_trips.size(); ++file) {
+        if (hasTripsAt(file))
+            return file;
+    }
+    return -1;
 }
 
 void TripStorage::showFile(qsizetype index)

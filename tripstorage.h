@@ -38,10 +38,13 @@ public:
     TripMetaData metadataAt(qsizetype index) const;
     QString currentFileName() const;
     QString fileNameAt(qsizetype index) const;
+    bool hasTripsAt(qsizetype index) const;
     bool hasPrevious() const;
     bool hasNext() const;
 
 private:
+    qsizetype previousTripFile() const;
+    qsizetype nextTripFile(qsizetype after) const;
     void showFile(qsizetype index);
     void applyCurrentMetadata();
     bool isErrorRow(int row) const;

@@ -2,9 +2,17 @@
 #include "ui_mainwindow.h"
 #include "version.h"
 
+#include <string>
+#include <utility>
+
+#include "columnheaders.h"
+
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
+#include <QGroupBox>
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <QEvent>
 #include <QLineEdit>
 #include <QFile>
@@ -229,6 +237,8 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::showHelp);
     connect(ui->actionAbout, &QAction::triggered,
             this, &MainWindow::showAbout);
+    connect(ui->actionSettings, &QAction::triggered,
+            this, &MainWindow::showExportSettings);
     connect(&m_triploader, &TripLoader::tripsLoaded,
             &m_tripmanager, &TripManager::setTrips);
     connect(&m_triploader, &TripLoader::tripsLoaded,
@@ -263,7 +273,13 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->mainTabs, &QTabWidget::currentChanged, this, [this] {
         equalizePanes();
     });
+    connect(this, &MainWindow::exportSettingsAccepted,
+            m_tripmanager.reporter(), &ErrorReportCreator::applyLoadedSettings);
+    connect(this, &MainWindow::exportSettingsAccepted,
+            m_tripmanager.reporter()->getSettingsManager(), &SettingsManager::applySettings);
     updateActionButtons();
+    m_tripmanager.reporter()->getSettingsManager()->readSettings();
+
 }
 
 MainWindow::~MainWindow()
@@ -367,6 +383,146 @@ void MainWindow::fitReportColumns()
     ui->reportTable->resizeRowsToContents();
 }
 
+namespace {
+
+class ParentCheckBox : public QCheckBox
+{
+public:
+    using QCheckBox::QCheckBox;
+
+protected:
+    void nextCheckState() override
+    {
+        setCheckState(checkState() == Qt::Checked ? Qt::Unchecked : Qt::Checked);
+    }
+};
+
+Qt::CheckState headerStateFor(const QVector<QCheckBox *> &boxes)
+{
+    const qsizetype checkedCount = std::count_if(boxes.cbegin(), boxes.cend(), [](const QCheckBox *box) {
+        return box->isChecked();
+    });
+    if (checkedCount == 0)
+        return Qt::Unchecked;
+    if (checkedCount == boxes.size())
+        return Qt::Checked;
+    return Qt::PartiallyChecked;
+}
+
+struct HeaderCheckBlock {
+    QGroupBox *group = nullptr;
+    QVector<QCheckBox *> boxes;
+};
+
+QVector<std::pair<QString, bool>> headersFromDialog(const QVector<std::pair<QString, bool>> &headers,
+                                                    const QVector<QCheckBox *> &boxes)
+{
+    QVector<std::pair<QString, bool>> result;
+    result.reserve(headers.size());
+    for (qsizetype index = 0; index < headers.size(); ++index) {
+        const bool checked = index < boxes.size() && boxes.at(index)->isChecked();
+        result.append(std::make_pair(headers.at(index).first, checked));
+    }
+    return result;
+}
+
+HeaderCheckBlock headerCheckBlock(QWidget *parent, const QString &title,
+                                   QVector<std::pair<QString, bool>> &headers)
+{
+    HeaderCheckBlock block;
+    auto *group = new QGroupBox(parent);
+    block.group = group;
+    auto *layout = new QVBoxLayout(group);
+    layout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+
+    auto *parentBox = new ParentCheckBox(title, group);
+    parentBox->setTristate(true);
+    layout->addWidget(parentBox, 0, Qt::AlignLeft);
+
+    auto *childLayout = new QVBoxLayout;
+    const int indent = group->style()->pixelMetric(QStyle::PM_IndicatorWidth)
+                       + group->style()->pixelMetric(QStyle::PM_CheckBoxLabelSpacing);
+    childLayout->setContentsMargins(indent, 0, 0, 0);
+    childLayout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    layout->addLayout(childLayout);
+
+    block.boxes.reserve(headers.size());
+    for (qsizetype index = 0; index < headers.size(); ++index) {
+        const QString text = QCoreApplication::translate(
+            kColumnHeaderContext, headers.at(index).first.toUtf8().constData());
+        auto *box = new QCheckBox(text, group);
+        box->setChecked(headers.at(index).second);
+        block.boxes.append(box);
+        childLayout->addWidget(box, 0, Qt::AlignLeft);
+    }
+    parentBox->setCheckState(headerStateFor(block.boxes));
+
+    const QVector<QCheckBox *> boxes = block.boxes;
+    QObject::connect(parentBox, &QCheckBox::clicked, group, [parentBox, &headers, boxes] {
+        const bool checked = parentBox->checkState() == Qt::Checked;
+        for (qsizetype index = 0; index < boxes.size(); ++index) {
+            const QSignalBlocker blocker(boxes.at(index));
+            boxes.at(index)->setChecked(checked);
+            headers[index].second = checked;
+        }
+    });
+
+    for (qsizetype index = 0; index < boxes.size(); ++index) {
+        QObject::connect(boxes.at(index), &QCheckBox::toggled, group,
+                         [parentBox, &headers, boxes, index](bool checked) {
+            headers[index].second = checked;
+            const QSignalBlocker blocker(parentBox);
+            parentBox->setCheckState(headerStateFor(boxes));
+        });
+    }
+    return block;
+}
+
+}
+
+void MainWindow::showExportSettings()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Exportálási beállítások"));
+    dialog.setWindowModality(Qt::ApplicationModal);
+    const int titleWidth = dialog.fontMetrics().horizontalAdvance(dialog.windowTitle());
+    const int titleButtons = dialog.style()->pixelMetric(QStyle::PM_TitleBarButtonSize);
+    dialog.setMinimumWidth(titleWidth + qMax(titleButtons, 24) * 4 + 48);
+    auto *layout = new QVBoxLayout(&dialog);
+    const SettingsManager *settings = m_tripmanager.reporter()->getSettingsManager();
+    QVector<std::pair<QString, bool>> metadata = settings->metadataHeaders();
+    QVector<std::pair<QString, bool>> columns = settings->columnHeaders();
+    const HeaderCheckBlock metadataBlock = headerCheckBlock(&dialog, tr("Metaadatok:"), metadata);
+    const HeaderCheckBlock columnBlock = headerCheckBlock(&dialog, tr("Adatok:"), columns);
+    layout->addWidget(metadataBlock.group);
+    layout->addWidget(columnBlock.group);
+    layout->addStretch();
+
+    auto *buttons = new QDialogButtonBox(&dialog);
+    auto *cancelButton = buttons->addButton(tr("Mégsem"), QDialogButtonBox::RejectRole);
+    auto *okButton = buttons->addButton(tr("Ok"), QDialogButtonBox::AcceptRole);
+    okButton->setDefault(true);
+    if (auto *boxLayout = qobject_cast<QBoxLayout *>(buttons->layout())) {
+        while (boxLayout->count() > 0)
+            delete boxLayout->takeAt(0);
+        boxLayout->addWidget(cancelButton);
+        boxLayout->addWidget(okButton);
+        boxLayout->addStretch();
+    }
+    layout->addWidget(buttons);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const QVector<std::pair<QString, bool>> columnHeaders =
+        headersFromDialog(columns, columnBlock.boxes);
+    const QVector<std::pair<QString, bool>> metadataHeaders =
+        headersFromDialog(metadata, metadataBlock.boxes);
+    emit exportSettingsAccepted(columnHeaders, metadataHeaders);
+}
+
 void MainWindow::showHelp()
 {
     if (!m_helpWindow) {
@@ -451,12 +607,10 @@ void MainWindow::showCurrentFile(const QString &fileName, bool hasPrevious, bool
     combo->clear();
     const TripStorage *storage = m_tripmanager.storage();
     const QVector<QVector<Trip>> &trips = storage->trips();
-    const QVector<TripMetaData> &metadata = storage->fileMetadata();
     for (qsizetype file = 0; file < trips.size(); ++file) {
-        QString name = storage->fileNameAt(file);
-        if (name.isEmpty() && file < metadata.size())
-            name = metadata.at(file).m_filename;
-        combo->addItem(name, int(file));
+        if (!storage->hasTripsAt(file))
+            continue;
+        combo->addItem(storage->fileNameAt(file), int(file));
         combo->setItemData(combo->count() - 1, int(Qt::AlignCenter), Qt::TextAlignmentRole);
     }
     combo->setCurrentIndex(combo->findData(int(storage->currentFile())));

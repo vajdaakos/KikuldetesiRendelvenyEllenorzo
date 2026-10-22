@@ -295,6 +295,12 @@
     </property>
     <addaction name="actionOpenDirectory"/>
    </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Beállítások</string>
+    </property>
+    <addaction name="actionSettings"/>
+   </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>Súgó</string>
@@ -304,6 +310,7 @@
     <addaction name="actionAbout"/>
    </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuSettings"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -315,6 +322,11 @@
     <string>Ctrl+O</string>
    </property>
    </action>
+  <action name="actionSettings">
+   <property name="text">
+    <string>Exportálási beállítások</string>
+   </property>
+  </action>
   <action name="actionHelp">
    <property name="text">
     <string>Súgó</string>

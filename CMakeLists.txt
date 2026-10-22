@@ -74,6 +74,8 @@ qt_add_executable(KrEllenorzo
     tripchecker.cpp
     errorreportcreator.h
     errorreportcreator.cpp
+    settingsmanager.h
+    settingsmanager.cpp
     errorstorage.h
     errorstorage.cpp
     icons.qrc

@@ -1,5 +1,4 @@
 #include "errorreportcreator.h"
-#include "columnheaders.h"
 
 #include <QDateTime>
 #include <QDir>
@@ -12,16 +11,14 @@
 
 #include <functional>
 
-namespace {
-
-QString csvField(const QString &value)
+QString ErrorReportCreator::csvField(const QString &value)
 {
     QString escaped = value;
     escaped.replace(QLatin1Char('"'), QStringLiteral("\"\""));
     return QLatin1Char('"') + escaped + QLatin1Char('"');
 }
 
-void writeRow(QTextStream &out, const QStringList &fields)
+void ErrorReportCreator::writeRow(QTextStream &out, const QStringList &fields)
 {
     QStringList escaped;
     escaped.reserve(fields.size());
@@ -30,38 +27,52 @@ void writeRow(QTextStream &out, const QStringList &fields)
     out << escaped.join(QLatin1Char(',')) << '\n';
 }
 
-QStringList tripFields(const Trip &trip)
-{
-    return {
-        QString::number(trip.id),
-        trip.m_sourcefile,
-        trip.m_trip_date_begin,
-        trip.m_trip_date_end,
-        trip.m_purpose,
-        trip.m_from,
-        trip.m_to,
-        QString::number(trip.m_length),
-        QString::number(trip.m_fuel_price),
-        QString::number(trip.m_fuel_cost),
-        QString::number(trip.m_maintenance_cost_factor1),
-        QString::number(trip.m_maintenance_cost_factor2),
-        QString::number(trip.m_total_cost),
-    };
-}
 
-QStringList reportRow(const TripMetaData *fileMetadata, const Trip &trip)
+QStringList ErrorReportCreator::metadataFields(const TripMetaData *fileMetadata) const
 {
-    QStringList row{
+    const QStringList values{
         fileMetadata ? fileMetadata->m_filename : QString{},
         fileMetadata ? fileMetadata->m_serial_number : QString{},
         fileMetadata ? fileMetadata->m_employee : QString{},
         fileMetadata ? QString::number(fileMetadata->m_employee_id) : QString{},
     };
+    QStringList fields;
+    const qsizetype count = qMin(m_metadataHeaders.size(), values.size());
+    for (qsizetype index = 0; index < count; ++index) {
+        if (m_metadataHeaders.at(index).second)
+            fields.append(values.at(index));
+    }
+    return fields;
+}
+
+QStringList ErrorReportCreator::selectedMetadataHeaders() const
+{
+    QStringList headers;
+    for (const auto &header : m_metadataHeaders) {
+        if (header.second)
+            headers.append(QCoreApplication::translate(kColumnHeaderContext, header.first.toUtf8().constData()));
+    }
+    return headers;
+}
+
+QStringList ErrorReportCreator::selectedColumnHeaders() const
+{
+    QStringList headers;
+    for (const auto &header : m_columnHeaders) {
+        if (header.second)
+            headers.append(QCoreApplication::translate(kColumnHeaderContext, header.first.toUtf8().constData()));
+    }
+    return headers;
+}
+
+QStringList ErrorReportCreator::reportRow(const TripMetaData *fileMetadata, const Trip &trip)
+{
+    QStringList row = metadataFields(fileMetadata);
     row += tripFields(trip);
     return row;
 }
 
-QString csvFileName(const QString &employee, const QString &sourceFileName)
+QString ErrorReportCreator::csvFileName(const QString &employee, const QString &sourceFileName)
 {
     QString employeePart = employee;
     QString sourcePart = sourceFileName;
@@ -70,7 +81,7 @@ QString csvFileName(const QString &employee, const QString &sourceFileName)
     return QStringLiteral("%1-%2.csv").arg(employeePart, sourcePart);
 }
 
-bool writeCsv(const QString &filePath, const QStringList &header, const QVector<QStringList> &rows, QString *error)
+bool ErrorReportCreator::writeCsv(const QString &filePath, const QStringList &header, const QVector<QStringList> &rows, QString *error)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
@@ -94,7 +105,7 @@ bool writeCsv(const QString &filePath, const QStringList &header, const QVector<
     return true;
 }
 
-QString sourceFileName(const TripMetaData *metadata, const QVector<Trip> &trips)
+QString ErrorReportCreator::sourceFileName(const TripMetaData *metadata, const QVector<Trip> &trips)
 {
     QString fileName;
     if (metadata && !metadata->m_filename.isEmpty())
@@ -104,19 +115,28 @@ QString sourceFileName(const TripMetaData *metadata, const QVector<Trip> &trips)
     return QFileInfo(fileName).completeBaseName();
 }
 
-}
+
 
 ErrorReportCreator::ErrorReportCreator(QObject *parent)
     : QRangeModel(std::ref(m_rows), parent)
+    , m_settings(*this)
 {
+    connect(&m_settings, &SettingsManager::settingsLoaded,
+            this, &ErrorReportCreator::applyLoadedSettings);
+}
+
+void ErrorReportCreator::applyLoadedSettings(const HeaderSettings &columnHeaders,
+                                             const HeaderSettings &metadataHeaders)
+{
+    m_columnHeaders = columnHeaders;
+    m_metadataHeaders = metadataHeaders;
 }
 
 QVariant ErrorReportCreator::headerData(int section, Qt::Orientation orientation, int role) const
 {
-    if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
-        const QStringList headers = reportColumnHeaders();
-        if (section >= 0 && section < headers.size())
-            return headers.at(section);
+    if (orientation == Qt::Horizontal && role == Qt::DisplayRole && m_reportReady) {
+        if (section >= 0 && section < m_reportHeaders.size())
+            return m_reportHeaders.at(section);
     }
     return QRangeModel::headerData(section, orientation, role);
 }
@@ -136,8 +156,13 @@ void ErrorReportCreator::create(const QVector<QVector<Trip>> &trips,
         }
     }
 
+    QStringList reportHeaders = selectedMetadataHeaders();
+    reportHeaders += selectedColumnHeaders();
+
     beginResetModel();
     m_rows = std::move(rows);
+    m_reportHeaders = reportHeaders;
+    m_reportReady = true;
     endResetModel();
 
     QWidget *parentWidget = nullptr;
@@ -171,7 +196,7 @@ void ErrorReportCreator::create(const QVector<QVector<Trip>> &trips,
     QTextStream out(&file);
     out.setEncoding(QStringConverter::Utf8);
     out.setGenerateByteOrderMark(true);
-    writeRow(out, reportColumnHeaders());
+    writeRow(out, m_reportHeaders);
     for (const QStringList &row : m_rows)
         writeRow(out, row);
     out.flush();
@@ -191,15 +216,17 @@ void ErrorReportCreator::create(const QVector<QVector<Trip>> &trips,
     for (qsizetype fileIndex = 0; fileIndex < errors.size(); ++fileIndex) {
         QVector<QStringList> exportedRows;
         exportedRows.reserve(errors.at(fileIndex).size());
+        const TripMetaData *fileMetadata = fileIndex < metadata.size() ? metadata.at(fileIndex) : nullptr;
         for (const Trip *trip : errors.at(fileIndex)) {
             if (!trip)
                 continue;
-            exportedRows.append(tripFields(*trip));
+            QStringList row = metadataFields(fileMetadata);
+            row += tripFields(*trip);
+            exportedRows.append(row);
         }
         if (exportedRows.isEmpty())
             continue;
 
-        const TripMetaData *fileMetadata = fileIndex < metadata.size() ? metadata.at(fileIndex) : nullptr;
         const QVector<Trip> fileTrips = fileIndex < trips.size() ? trips.at(fileIndex) : QVector<Trip>{};
         const QString exportedName = csvFileName(
             fileMetadata ? fileMetadata->m_employee : QString{},
@@ -207,7 +234,7 @@ void ErrorReportCreator::create(const QVector<QVector<Trip>> &trips,
         const QString exportedPath = QDir(reportDirectory).filePath(exportedName);
 
         QString writeError;
-        if (!writeCsv(exportedPath, tripColumnHeaders(), exportedRows, &writeError))
+        if (!writeCsv(exportedPath, m_reportHeaders, exportedRows, &writeError))
             fileExportErrors.append(tr("%1: %2").arg(QDir::toNativeSeparators(exportedPath), writeError));
     }
 
@@ -223,3 +250,62 @@ void ErrorReportCreator::create(const QVector<QVector<Trip>> &trips,
                 .arg(QDir::toNativeSeparators(filePath), fileExportErrors.join(QLatin1Char('\n'))));
     }
 }
+
+QStringList ErrorReportCreator::tripFields(const Trip &trip)
+{
+    QStringList fields;
+    if(m_columnHeaders.at(0).second)
+    {
+        fields.append(QString::number(trip.id));
+    }
+    if(m_columnHeaders.at(1).second)
+    {
+        fields.append(trip.m_sourcefile);
+    }
+    if(m_columnHeaders.at(2).second)
+    {
+        fields.append(trip.m_trip_date_begin);
+    }
+    if(m_columnHeaders.at(3).second)
+    {
+        fields.append(trip.m_trip_date_end);
+    }
+    if(m_columnHeaders.at(4).second)
+    {
+        fields.append(trip.m_purpose);
+    }
+    if(m_columnHeaders.at(5).second)
+    {
+        fields.append(trip.m_from);
+    }
+    if(m_columnHeaders.at(6).second)
+    {
+        fields.append(trip.m_to);
+    }
+    if(m_columnHeaders.at(7).second)
+    {
+        fields.append(QString::number(trip.m_length));
+    }
+    if(m_columnHeaders.at(8).second)
+    {
+        fields.append(QString::number(trip.m_fuel_price));
+    }
+    if(m_columnHeaders.at(9).second)
+    {
+        fields.append(QString::number(trip.m_fuel_cost));
+    }
+    if(m_columnHeaders.at(10).second)
+    {
+        fields.append(QString::number(trip.m_maintenance_cost_factor1));
+    }
+    if(m_columnHeaders.at(11).second)
+    {
+        fields.append(QString::number(trip.m_maintenance_cost_factor2));
+    }
+    if(m_columnHeaders.at(12).second)
+    {
+        fields.append(QString::number(trip.m_total_cost));
+    }
+    return fields;
+}
+

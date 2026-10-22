@@ -11,6 +11,8 @@
 #include <QStringList>
 #include <QVector>
 
+#include <utility>
+
 class QAbstractItemView;
 class QDialog;
 class QHeaderView;
@@ -35,6 +37,10 @@ protected:
     void showEvent(QShowEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
 
+signals:
+    void exportSettingsAccepted(const QVector<std::pair<QString, bool>> &columnHeaders,
+                                const QVector<std::pair<QString, bool>> &metadataHeaders);
+
 private slots:
     void openDirectory();
     void showLoadResult(const QVector<QVector<Trip>> &trips);
@@ -47,6 +53,7 @@ private slots:
     void showErrorFileFromCombo(int index);
     void showHelp();
     void showAbout();
+    void showExportSettings();
 
 private:
     void showTripColumns(QTableView *view);
