@@ -56,8 +56,8 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
 signals:
-    void exportSettingsAccepted(const QVector<std::pair<QString, bool>> &columnHeaders,
-                                const QVector<std::pair<QString, bool>> &metadataHeaders);
+    void exportSettingsAccepted(const HeaderSettings &columnHeaders,
+                                const HeaderSettings &metadataHeaders);
 
 private slots:
     void openDirectory();

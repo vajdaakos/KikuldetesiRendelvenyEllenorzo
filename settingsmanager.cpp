@@ -38,7 +38,7 @@ QString settingsFilePath()
     return QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("settings.json"));
 }
 
-QJsonArray headerArray(const QVector<std::pair<QString, bool>> &headers)
+QJsonArray headerArray(const HeaderSettings &headers)
 {
     QJsonArray array;
     for (const std::pair<QString, bool> &header : headers) {
@@ -90,7 +90,7 @@ void warnSaveFailed(QObject *object, bool previousFileRemains)
 }
 
 void readHeaders(const QJsonObject &root, const QString &key,
-                 QVector<std::pair<QString, bool>> &headers)
+                 HeaderSettings &headers)
 {
     const QJsonValue value = root.value(key);
     if (!value.isArray())

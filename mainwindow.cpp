@@ -432,10 +432,10 @@ struct HeaderCheckBlock {
     QVector<QCheckBox *> boxes;
 };
 
-QVector<std::pair<QString, bool>> headersFromDialog(const QVector<std::pair<QString, bool>> &headers,
+HeaderSettings headersFromDialog(const HeaderSettings &headers,
                                                     const QVector<QCheckBox *> &boxes)
 {
-    QVector<std::pair<QString, bool>> result;
+    HeaderSettings result;
     result.reserve(headers.size());
     for (qsizetype index = 0; index < headers.size(); ++index) {
         const bool checked = index < boxes.size() && boxes.at(index)->isChecked();
@@ -444,8 +444,7 @@ QVector<std::pair<QString, bool>> headersFromDialog(const QVector<std::pair<QStr
     return result;
 }
 
-HeaderCheckBlock headerCheckBlock(QWidget *parent, const QString &title,
-                                   QVector<std::pair<QString, bool>> &headers)
+HeaderCheckBlock headerCheckBlock(QWidget *parent, const QString &title, HeaderSettings &headers)
 {
     HeaderCheckBlock block;
     auto *group = new QGroupBox(parent);
@@ -508,8 +507,8 @@ void MainWindow::showExportSettings()
     dialog.setMinimumWidth(titleWidth + qMax(titleButtons, 24) * 4 + 48);
     auto *layout = new QVBoxLayout(&dialog);
     const SettingsManager *settings = m_tripmanager.reporter()->getSettingsManager();
-    QVector<std::pair<QString, bool>> metadata = settings->metadataHeaders();
-    QVector<std::pair<QString, bool>> columns = settings->columnHeaders();
+    HeaderSettings metadata = settings->metadataHeaders();
+    HeaderSettings columns = settings->columnHeaders();
     const HeaderCheckBlock metadataBlock = headerCheckBlock(&dialog, tr("Metaadatok:"), metadata);
     const HeaderCheckBlock columnBlock = headerCheckBlock(&dialog, tr("Adatok:"), columns);
     layout->addWidget(metadataBlock.group);
@@ -534,9 +533,9 @@ void MainWindow::showExportSettings()
     if (dialog.exec() != QDialog::Accepted)
         return;
 
-    const QVector<std::pair<QString, bool>> columnHeaders =
+    const HeaderSettings columnHeaders =
         headersFromDialog(columns, columnBlock.boxes);
-    const QVector<std::pair<QString, bool>> metadataHeaders =
+    const HeaderSettings metadataHeaders =
         headersFromDialog(metadata, metadataBlock.boxes);
     emit exportSettingsAccepted(columnHeaders, metadataHeaders);
 }
