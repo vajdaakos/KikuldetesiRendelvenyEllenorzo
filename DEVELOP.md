@@ -1,3 +1,21 @@
+<!--
+Kiküldetési Rendelvény Ellenőrző — kiküldetési rendelvények ellenőrzése.
+Copyright (C) 2026 Vajda Ákos Péter <vajdaakos@alu-fon.hu>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
 # Fejlesztői dokumentáció
 
 A felhasználói leírás a [README.md](README.md). Ez a fájl a kód szerkezetét, az adatfolyamot és azokat a helyeket írja le, amelyeket együtt kell módosítani.
@@ -429,7 +447,7 @@ A záró ablak ettől a listától függ.
 
 Az [icons.qrc](icons.qrc) a `:/icons/app.png` ikont és a `:/help/readme.md` aliast tartalmazza. Az alias a [README.md](README.md) fájlra mutat, ezért a súgó a használati leírással együtt frissül, ha a program újrafordul. Az **F1** és a **Súgó** menü ugyanazt a nem modális ablakot nyitja. A `QTextBrowser::setMarkdown` rajzolja ki. Az ablak a bezárásig megmarad, ismételt megnyitáskor előre kerül.
 
-A **Névjegy** a súgó alatt, elválasztó után van. A szöveg középre igazított: a terméknév, a `version.h` értékeiből összeállított `v MAJOR.MINOR.PATCH`, a készítő neve és az e-mail-címe. A doboz a főablak ikonját mutatja.
+A **Névjegy** a súgó alatt, elválasztó után van. A szöveg középre igazított: a terméknév, a `version.h` értékeiből összeállított `v MAJOR.MINOR.PATCH`, a `Copyright (C) 2026 Vajda Ákos Péter` sor, az e-mail-cím, majd a GPLv3 angol és magyar közleménye. A `https://www.gnu.org/licenses/` cím szöveg, nem hivatkozás. A súgó nem tartalmaz licencszakaszt. A doboz a főablak ikonját mutatja.
 
 ## Tudatosan vállalt kompromisszumok
 

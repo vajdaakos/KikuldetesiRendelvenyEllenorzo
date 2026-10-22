@@ -1,3 +1,21 @@
+<!--
+Kiküldetési Rendelvény Ellenőrző — kiküldetési rendelvények ellenőrzése.
+Copyright (C) 2026 Vajda Ákos Péter <vajdaakos@alu-fon.hu>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
 # Kiküldetési Rendelvény Ellenőrző
 
 A program kiküldetési rendelvény PDF-eket tölt be egy könyvtárból, megmutatja az utakat, és kiszűri azokat, amelyeknél a kiindulópont és a cél megegyezik, az összköltség pedig nagyobb nullánál.
@@ -36,7 +54,9 @@ A csoport címe melletti pipa a csoport minden jelölőnégyzetét be- vagy kika
 
 Az **Ok** a pipákat ettől a pillanattól az exportálásra alkalmazza, és a program mappájába, a `settings.json` fájlba írja. A régi fájl csak a sikeres írás után cserélődik le. Ha a mentés nem sikerül, és a korábbi fájl megvan, figyelmeztetés közli, hogy az változatlan marad, és a következő indulás abból tölt. Ha még nincs fájl, a figyelmeztetés azt mondja, hogy a következő induláskor az alapértelmezett beállítások lépnek életbe. A **Mégsem** és az Escape elveti a módosítást.
 
-> **Figyelem!** Ha a két csoportban minden jelölőnégyzetet kikapcsol, a program ettől még elkészíti az összesített és a PDF-enkénti CSV-fájlokat, de ezek üresek lesznek: sem fejlécet, sem adatot nem tartalmaznak, csak üres sorokat. A **Hibariport** fül ilyenkor oszlopok nélküli táblát mutat. Exportálás előtt legalább egy oszlopot jelöljön be. Induláskor a program beolvassa a mappájában lévő `settings.json` fájlt, és ezekkel a pipákkal exportál. Ha a fájl hiányzik, a JSON nem olvasható, vagy a gyökér nem objektum, modális figyelmeztetés jelenik meg, középre igazított szöveggel: a beállító fájl betöltése sikertelen, a program az alapértelmezett beállításokkal indul.
+> **Figyelem!** Ha a két csoportban minden jelölőnégyzetet kikapcsol, a program ettől még elkészíti az összesített és a PDF-enkénti CSV-fájlokat, de ezek üresek lesznek: sem fejlécet, sem adatot nem tartalmaznak, csak üres sorokat. A **Hibariport** fül ilyenkor oszlopok nélküli táblát mutat. Exportálás előtt legalább egy oszlopot jelöljön be.
+
+Induláskor a program beolvassa a mappájában lévő `settings.json` fájlt, és ezekkel a pipákkal exportál. Ha a fájl hiányzik, a JSON nem olvasható, vagy a gyökér nem objektum, modális figyelmeztetés jelenik meg, középre igazított szöveggel: a beállító fájl betöltése sikertelen, a program az alapértelmezett beállításokkal indul.
 
 ## Hibariport
 
