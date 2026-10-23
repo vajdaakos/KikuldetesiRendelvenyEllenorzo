@@ -33,23 +33,23 @@ inline const HeaderSettings kDefaultColumnHeaders{
     std::make_pair("Sorszám", true),
     std::make_pair("Forrásfájl", false),
     std::make_pair("Kezdés", true),
-    std::make_pair("Befejezés", true),
+    std::make_pair("Befejezés", false),
     std::make_pair("Cél", true),
     std::make_pair("Honnan", true),
-    std::make_pair("Hova", true),
+    std::make_pair("Hova", false),
     std::make_pair("Távolság", true),
-    std::make_pair("Üzemanyagár", true),
-    std::make_pair("Üzemanyagköltség", true),
-    std::make_pair("Fenntartási szorzó 1", true),
-    std::make_pair("Fenntartási szorzó 2", true),
-    std::make_pair("Összesen", true)
+    std::make_pair("Üzemanyagár", false),
+    std::make_pair("Üzemanyagköltség", false),
+    std::make_pair("Fenntartási szorzó 1", false),
+    std::make_pair("Fenntartási szorzó 2", false),
+    std::make_pair("Összesen", false)
 };
 
 inline const HeaderSettings kDefaultMetadataHeaders{
     std::make_pair("Fájlnév", false),
-    std::make_pair("Sorszám", true),
+    std::make_pair("Sorszám", false),
     std::make_pair("Munkavállaló", true),
-    std::make_pair("Törzsszám", true)
+    std::make_pair("Törzsszám", false)
 };
 
 inline QStringList tripColumnHeaders()
