@@ -66,7 +66,7 @@ A betöltés, az állapot, a beállítások és a felület külön osztályban v
 | Bemenet | `TripLoader` | Könyvtár bejárása, Poppler-olvasás, metaadat és utak előállítása |
 | Állapot és koordináció | `TripManager` | A négy tagváltozó osztály (`TripStorage`, `ErrorStorage`, `TripChecker`, `ErrorReportCreator`) együttműködését vezérli; kezeli a fájlnavigációt és a hiba–forrás szinkront |
 | Megjelenítés | `MainWindow` | Fülek, táblák, gombok, párbeszédablakok, súgó, névjegy |
-| Beállítások | `SettingsManager` | A `readSettings()` induláskor betölti a `settings.json` pipáit. Az `applySettings()` az **Ok** gombra elmenti őket. Érvényes betöltés után a `settingsLoaded` signal az `ErrorReportCreator::applyLoadedSettings` slotot hívja. |
+| Beállítások | `SettingsManager` | A `readSettings()` induláskor betölti a `settings.json` három objektumának pipáit. Az `applySettings()` az exportálási, az `applyDisplaySettings()` a megjelenési **Ok** gombra menti a teljes fájlt. Érvényes betöltés után a `settingsLoaded` signal az `ErrorReportCreator::applyLoadedSettings` slotot hívja, és csak az exportlistákat adja át. |
 
 A `TripManager` a kompozíció gyökere. A feladatokat a következő tagváltozó osztályokra bízza:
 
@@ -175,8 +175,11 @@ classDiagram
     class SettingsManager {
         +readSettings()
         +applySettings()
+        +applyDisplaySettings()
         +columnHeaders()
         +metadataHeaders()
+        +displayColumnHeaders()
+        +errorColumnHeaders()
         +settingsLoaded
     }
 ```
@@ -300,12 +303,12 @@ sequenceDiagram
     alt a fájl nem nyitható, a JSON hibás, vagy a gyökér nem objektum
         Beállítások-->>Ablak: figyelmeztetés, a pipák az alapértéken maradnak
     else érvényes objektum
-        Beállítások->>Beállítások: a meglévő sorok second mezője
+        Beállítások->>Beállítások: a három objektum sorainak second mezője
         Beállítások-)Riport: settingsLoaded → applyLoadedSettings
     end
 ```
 
-A mentés az exportálási beállítások **Ok** gombjára indul. A signal két slotra van kötve, a `connect()` sorrendjében. A **Mégsem** és az Escape nem bocsát ki signalt.
+A mentés mindkét beállítási ablak **Ok** gombjára indul. A signal a `connect()` sorrendjében hívja a slotjait. A **Mégsem** és az Escape nem bocsát ki signalt.
 
 ```mermaid
 sequenceDiagram
@@ -324,44 +327,62 @@ sequenceDiagram
     end
 ```
 
+A megjelenési **Ok** négy listát ment, és mindkét tábla oszlopait azonnal kapcsolja. Az `ErrorReportCreator` exportlistái ettől nem változnak.
+
+```mermaid
+sequenceDiagram
+    actor Felhasználó
+    participant Ablak as MainWindow
+    participant Beállítások as SettingsManager
+
+    Felhasználó->>Ablak: Megjelenési beállítások, Ok
+    Ablak->>Ablak: négy lista a két csoport jelölőnégyzeteiből
+    Ablak-)Ablak: displaySettingsAccepted → applyDisplayColumns
+    Ablak-)Beállítások: displaySettingsAccepted → applyDisplaySettings
+    Beállítások->>Beállítások: settings.json, mind a három objektum, QSaveFile
+    alt a megnyitás, az írás vagy a commit sikertelen
+        Beállítások-->>Felhasználó: figyelmeztetés a megmaradt vagy hiányzó fájlról
+    end
+```
+
 ## Fájlok
 
 - [trip.h](trip.h) — egy út tizenhárom mezője és a tuple-protokoll.
 - [tripmetadata.h](tripmetadata.h) — egy PDF fejléce: sorszám, munkavállaló, törzsszám, fájlnév.
-- [columnheaders.h](columnheaders.h) — a fejlécnevek és az alapértelmezett pipák. A `HeaderSettings` a `QVector<std::pair<QString,bool>>` típusaliasza. A `kDefaultColumnHeaders` és a `kDefaultMetadataHeaders` programszinten egyetlen, változtathatatlan `inline const` lista. A `kDefaultErrorColumnHeaders` a jobb panel alapértelmezett oszloppipáit tartja: sorszám, honnan, hova, távolság és összesen. A fordítási kontextus az `inline constexpr char kColumnHeaderContext[]`, értéke `ColumnHeaders`. A `tripColumnHeaders()` konstans referenciával járja be a `kDefaultColumnHeaders` elemeit, és a `kColumnHeaderContext` kontextussal fordítja a neveket. A dialógus nem az alaplistákat szerkeszti: a megnyitáskori pipákat a `SettingsManager` `columnHeaders()` és `metadataHeaders()` másolatából veszi. Az **Ok** a jelölőnégyzetek állapotát másolja az `ErrorReportCreator` és a `SettingsManager` saját tagjaiba. A `m_columnHeaders` és a `m_metadataHeaders` tagok a két alaplista másolatából indulnak.
+- [columnheaders.h](columnheaders.h) — a fejlécnevek és az alapértelmezett pipák. A `HeaderSettings` a `QVector<std::pair<QString,bool>>` típusaliasza. A `kDefaultColumnHeaders` és a `kDefaultMetadataHeaders` programszinten egyetlen, változtathatatlan `inline const` lista. A `kDefaultErrorColumnHeaders` a jobb panel alapértelmezett oszloppipáit tartja: sorszám, honnan, hova, távolság és összesen. A fordítási kontextus az `inline constexpr char kColumnHeaderContext[]`, értéke `ColumnHeaders`. A `tripColumnHeaders()` konstans referenciával járja be a `kDefaultColumnHeaders` elemeit, és a `kColumnHeaderContext` kontextussal fordítja a neveket. A párbeszédablakok nem az alaplistákat szerkesztik. Az exportálási ablak a `columnHeaders()` és a `metadataHeaders()` másolatából tölti a pipákat, a megjelenési ablak a `displayColumnHeaders()`, a `displayMetadataHeaders()`, az `errorColumnHeaders()` és az `errorMetadataHeaders()` másolatából. Az exportálási **Ok** az `ErrorReportCreator` és a `SettingsManager` exportlistáit cseréli. A megjelenési **Ok** a `SettingsManager` négy megjelenítési listáját cseréli. A tagok az alaplisták másolatából indulnak.
 - [triploader.h](triploader.h), [triploader.cpp](triploader.cpp) — Poppler-parser.
 - [tripstorage.h](tripstorage.h), [tripstorage.cpp](tripstorage.cpp) — a betöltött fájlok és a bal tábla modellje.
 - [errorstorage.h](errorstorage.h), [errorstorage.cpp](errorstorage.cpp) — a hibák és a jobb nézet modellje.
 - [tripchecker.h](tripchecker.h), [tripchecker.cpp](tripchecker.cpp) — az ellenőrzési szabály.
 - [errorreportcreator.h](errorreportcreator.h), [errorreportcreator.cpp](errorreportcreator.cpp) — a Hibariport modellje és a CSV-írás. A `m_settings` tag szülője az `ErrorReportCreator`, a konstruktor referenciaként kapja.
-- [settingsmanager.h](settingsmanager.h), [settingsmanager.cpp](settingsmanager.cpp) — a `SettingsManager`, `QObject`. A `m_columnHeaders` és a `m_metadataHeaders` tag `HeaderSettings`, kezdőértékük a `kDefaultColumnHeaders` és a `kDefaultMetadataHeaders` másolata. A `m_displayColumnHeaders` és a `m_displayMetadataHeaders` ugyanebből a két alaplistából indul, és a bal panel pipáit tartja. A `m_errorColumnHeaders` a `kDefaultErrorColumnHeaders` másolatából, a `m_errorMetadataHeaders` a `kDefaultMetadataHeaders` másolatából indul, és a jobb panel pipáit tartja. A `readSettings()` slot a futtatható állomány mappájából olvassa a `settings.json` fájlt egy helyi `QJsonDocument` változóba. Ha a fájl nem nyitható meg, a JSON elemzése hibás, vagy a gyökér nem objektum, modális figyelmeztetés jelenik meg, középre igazított szöveggel: a beállító fájl betöltése sikertelen, a program az alapértelmezett beállításokkal indul. Ilyenkor a `settingsLoaded` signal nem indul el, a memóriában lévő listák a `kDefaultColumnHeaders` és a `kDefaultMetadataHeaders` másolatán maradnak. A gyökér három objektumot tartalmaz. Az `Exportálási beállítások` a korábbi `metadataheaders` és `columnheaders` tömböket tartja. A `Kiküldetési rendelvény megjelenítése` ugyanezt a két tömböt a bal panelhez. A `Hibák megjelenítése` ugyanezt a jobb panelhez. Ha az exportobjektum hiányzik, a `readSettings()` a gyökér régi tömbjeit olvassa. Egy tömb egykulcsos objektumokból áll, például `{"Forrásfájl":false}`: a kulcs a fejléc, az érték a pipa. A slot a `m_columnHeaders` és a `m_metadataHeaders` meglévő sorait járja be, és csak a `second` mezőt írja felül, ha a JSON-ban megvan a sor `first` neve. A nevek, a sorrend és a hossza változatlan marad. Hiányzó vagy nem tömb kulcsnál, illetve a JSON-ból hiányzó fejlécnél a pipa az alapértéken marad. A beolvasás végén a `settingsLoaded` signal a két listát továbbadja. Az `ErrorReportCreator::applyLoadedSettings` slot ezt elkapja, és a saját `m_columnHeaders` és `m_metadataHeaders` tagját a kapott értékekkel írja felül. A kapcsolat a konstruktorban jön létre, a `m_settings` a szülő. Az `applySettings` slot ugyanezt a két tagot cseréli, amikor a főablak `exportSettingsAccepted` signalja a dialógus **Ok** gombjának listáit hozza, majd a `writeSettingsFile()` mind a három gyökérobjektumot kiírja. Egy objektumban előbb a `metadataheaders`, utána a `columnheaders` tömb áll, minden elem egykulcsos objektum. Az `applyDisplaySettings` a bal és a jobb panel listáit cseréli, amikor a `displaySettingsAccepted` signal a **Megjelenési beállítások** **Ok** gombjának négy listáját hozza, és ugyanígy a teljes fájlt írja. A mentés `QSaveFile`: a régi fájl csak a sikeres `commit()` után cserélődik le, egy megszakadt írás nem csonkolja. Ha a mentés sikertelen és a korábbi fájl megvan, a figyelmeztetés azt mondja, hogy a fájl változatlan, és a következő indulás abból tölt. Ha még nincs fájl, a szöveg a következő indulás alapértékeit ígéri. A `MainWindow` konstruktora a végén közvetlenül hívja a `SettingsManager::readSettings()` slotot, ezért induláskor a fájl betöltődik.
+- [settingsmanager.h](settingsmanager.h), [settingsmanager.cpp](settingsmanager.cpp) — a `SettingsManager`, `QObject`. A `m_columnHeaders` és a `m_metadataHeaders` tag `HeaderSettings`, kezdőértékük a `kDefaultColumnHeaders` és a `kDefaultMetadataHeaders` másolata. A `m_displayColumnHeaders` és a `m_displayMetadataHeaders` ugyanebből a két alaplistából indul, és a bal panel pipáit tartja. A `m_errorColumnHeaders` a `kDefaultErrorColumnHeaders` másolatából, a `m_errorMetadataHeaders` a `kDefaultMetadataHeaders` másolatából indul, és a jobb panel pipáit tartja. A `readSettings()` slot a futtatható állomány mappájából olvassa a `settings.json` fájlt egy helyi `QJsonDocument` változóba. Ha a fájl nem nyitható meg, a JSON elemzése hibás, vagy a gyökér nem objektum, modális figyelmeztetés jelenik meg, középre igazított szöveggel: a beállító fájl betöltése sikertelen, a program az alapértelmezett beállításokkal indul. Ilyenkor a `settingsLoaded` signal nem indul el, a memóriában lévő listák az alapértékükön maradnak. Az export- és a bal panel listái a `kDefaultColumnHeaders` és a `kDefaultMetadataHeaders` másolatai. A jobb panel oszlopai a `kDefaultErrorColumnHeaders`, a metaadatlistája a `kDefaultMetadataHeaders` másolata. A gyökér három objektumot tartalmaz. Az `Exportálási beállítások` a korábbi `metadataheaders` és `columnheaders` tömböket tartja. A `Kiküldetési rendelvény megjelenítése` ugyanezt a két tömböt a bal panelhez. A `Hibák megjelenítése` ugyanezt a jobb panelhez. Ha az exportobjektum hiányzik, a `readSettings()` a gyökér régi tömbjeit olvassa. Egy tömb egykulcsos objektumokból áll, például `{"Forrásfájl":false}`: a kulcs a fejléc, az érték a pipa. A slot mind a hat listán a meglévő sorokat járja be, és csak a `second` mezőt írja felül, ha a JSON-ban megvan a sor `first` neve. A nevek, a sorrend és a hossza változatlan marad. Hiányzó vagy nem tömb kulcsnál, illetve a JSON-ból hiányzó fejlécnél a pipa az alapértéken marad. A beolvasás végén a `settingsLoaded` signal a két listát továbbadja. Az `ErrorReportCreator::applyLoadedSettings` slot ezt elkapja, és a saját `m_columnHeaders` és `m_metadataHeaders` tagját a kapott értékekkel írja felül. A kapcsolat a konstruktorban jön létre, a `m_settings` a szülő. Az `applySettings` slot ugyanezt a két tagot cseréli, amikor a főablak `exportSettingsAccepted` signalja a dialógus **Ok** gombjának listáit hozza, majd a `writeSettingsFile()` mind a három gyökérobjektumot kiírja. Egy objektumban előbb a `metadataheaders`, utána a `columnheaders` tömb áll, minden elem egykulcsos objektum. Az `applyDisplaySettings` a bal és a jobb panel listáit cseréli, amikor a `displaySettingsAccepted` signal a **Megjelenési beállítások** **Ok** gombjának négy listáját hozza, és ugyanígy a teljes fájlt írja. A mentés `QSaveFile`: a régi fájl csak a sikeres `commit()` után cserélődik le, egy megszakadt írás nem csonkolja. Ha a mentés sikertelen és a korábbi fájl megvan, a figyelmeztetés azt mondja, hogy a fájl változatlan, és a következő indulás abból tölt. Ha még nincs fájl, a szöveg a következő indulás alapértékeit ígéri. A `MainWindow` konstruktora a végén közvetlenül hívja a `SettingsManager::readSettings()` slotot, ezért induláskor a fájl betöltődik.
 - [tripmetadatawidget.h](tripmetadatawidget.h), [tripmetadatawidget.cpp](tripmetadatawidget.cpp) — a négy metaadatcímke.
 - [mainwindow.h](mainwindow.h), [mainwindow.cpp](mainwindow.cpp), [mainwindow.ui](mainwindow.ui) — a felület.
 - [icons.qrc](icons.qrc) — az alkalmazásikon és a súgó szövege.
 
 ## Út adatsémája
 
-A `Trip` mezői, a `kDefaultColumnHeaders` és a `tripColumnHeaders()` sorrendje ugyanaz. A `std::tuple_size<Trip>` értéke 13. A `get<I>()` mindig konstans referenciát ad vissza, a nézetek tehát csak olvassák a sort.
+A `Trip` mezői, a `kDefaultColumnHeaders`, a `kDefaultErrorColumnHeaders` és a `tripColumnHeaders()` sorrendje ugyanaz. A `std::tuple_size<Trip>` értéke 13. A `get<I>()` mindig konstans referenciát ad vissza, a nézetek tehát csak olvassák a sort.
 
-| Index | Mező | Fejléc | Látható a két ellenőrző nézetben |
-| --- | --- | --- | --- |
-| 0 | `id` | Sorszám | igen |
-| 1 | `m_sourcefile` | Forrásfájl | nem |
-| 2 | `m_trip_date_begin` | Kezdés | nem |
-| 3 | `m_trip_date_end` | Befejezés | nem |
-| 4 | `m_purpose` | Cél | nem |
-| 5 | `m_from` | Honnan | igen |
-| 6 | `m_to` | Hova | igen |
-| 7 | `m_length` | Távolság | igen |
-| 8 | `m_fuel_price` | Üzemanyagár | nem |
-| 9 | `m_fuel_cost` | Üzemanyagköltség | nem |
-| 10 | `m_maintenance_cost_factor1` | Fenntartási szorzó 1 | nem |
-| 11 | `m_maintenance_cost_factor2` | Fenntartási szorzó 2 | nem |
-| 12 | `m_total_cost` | Összesen | igen |
+| Index | Mező | Fejléc |
+| --- | --- | --- |
+| 0 | `id` | Sorszám |
+| 1 | `m_sourcefile` | Forrásfájl |
+| 2 | `m_trip_date_begin` | Kezdés |
+| 3 | `m_trip_date_end` | Befejezés |
+| 4 | `m_purpose` | Cél |
+| 5 | `m_from` | Honnan |
+| 6 | `m_to` | Hova |
+| 7 | `m_length` | Távolság |
+| 8 | `m_fuel_price` | Üzemanyagár |
+| 9 | `m_fuel_cost` | Üzemanyagköltség |
+| 10 | `m_maintenance_cost_factor1` | Fenntartási szorzó 1 |
+| 11 | `m_maintenance_cost_factor2` | Fenntartási szorzó 2 |
+| 12 | `m_total_cost` | Összesen |
 
-A jobb tábla oszlopait a `m_errorColumnHeaders` pipái kapcsolják, a bal tábla oszlopait a `m_displayColumnHeaders` pipái. A `showTripColumns()` mindkét nézetre az `applyCheckedColumns()` függvényt hívja. Alapértéken a jobb tábla a `kDefaultErrorColumnHeaders` szerint a sorszámot, a honnan, a hova, a távolság és az összesen oszlopot mutatja. A két tábla fejléce a `tripColumnHeaders()`, a rejtett oszlopok is benne vannak a modellben, csak a nézet takarja el őket. Az export pillanatában a Hibariport és az összesített CSV fejléce a `selectedMetadataHeaders()` és a `selectedColumnHeaders()` egymás után: mindkettő csak a `second` igaz értékű oszlopot veszi fel. Ez a lista a `m_reportHeaders` tagba kerül, a sor cellái a `metadataFields()` és a `tripFields()` eredménye, ugyanebben a sorrendben. A későbbi beállításváltás a `m_columnHeaders` listát cseréli, a kész riport fejlécét nem: a `headerData()` a `m_reportHeaders` pillanatképét adja a következő `create()` hívásig. A fejlécek fordítási kontextusa a `kColumnHeaderContext`, értéke `ColumnHeaders`. Az alapértelmezett pipák a `kDefaultMetadataHeaders` és a `kDefaultColumnHeaders` `second` értékei. A tárolt fejlécszöveg a két fenntartási oszlopnál `Fenntartási szorzó 1` és `Fenntartási szorzó 2`.
+A jobb tábla oszlopait a `m_errorColumnHeaders` pipái kapcsolják, a bal tábla oszlopait a `m_displayColumnHeaders` pipái. A `showTripColumns()` mindkét nézetre az `applyCheckedColumns()` függvényt hívja. Alapértéken a bal tábla a `kDefaultColumnHeaders` szerint a sorszámot, a kezdést, a célt, a honnan és a távolság oszlopot mutatja. A jobb tábla a `kDefaultErrorColumnHeaders` szerint a sorszámot, a honnan, a hova, a távolság és az összesen oszlopot mutatja. A két tábla fejléce a `tripColumnHeaders()`, a rejtett oszlopok is benne vannak a modellben, csak a nézet takarja el őket. Az export pillanatában a Hibariport és az összesített CSV fejléce a `selectedMetadataHeaders()` és a `selectedColumnHeaders()` egymás után: mindkettő csak a `second` igaz értékű oszlopot veszi fel. Ez a lista a `m_reportHeaders` tagba kerül, a sor cellái a `metadataFields()` és a `tripFields()` eredménye, ugyanebben a sorrendben. A későbbi beállításváltás a `m_columnHeaders` listát cseréli, a kész riport fejlécét nem: a `headerData()` a `m_reportHeaders` pillanatképét adja a következő `create()` hívásig. A fejlécek fordítási kontextusa a `kColumnHeaderContext`, értéke `ColumnHeaders`. Az alapértelmezett pipák a `kDefaultMetadataHeaders`, a `kDefaultColumnHeaders` és a `kDefaultErrorColumnHeaders` `second` értékei. A tárolt fejlécszöveg a két fenntartási oszlopnál `Fenntartási szorzó 1` és `Fenntartási szorzó 2`.
 
-Ha a PDF-séma bővül, együtt kell módosítani a `Trip` mezőit, a `get<I>()` ágait, a `tuple_size` értékét, a `kDefaultColumnHeaders` listáját és a `tripFields()` megfelelő ágát. A [triploader.cpp](triploader.cpp) ebből a szövegből tölti a mezőket: a `columnOf`, a `fillText`, a `fillAmounts` és a `readMetadata` a PDF felismerése, nem a CSV sora. A metaadatértékeket a `metadataFields()` adja, a `m_metadataHeaders` sorrendjében, és csak ott, ahol a `second` igaz. Ha az új mezőnek a jobb panelen látszania kell, a `kDefaultErrorColumnHeaders` megfelelő `second` értéke dönt. A bal panelen a `kDefaultColumnHeaders` megfelelő `second` értéke dönt.
+Ha a PDF-séma bővül, együtt kell módosítani a `Trip` mezőit, a `get<I>()` ágait, a `tuple_size` értékét, a `kDefaultColumnHeaders` és a `kDefaultErrorColumnHeaders` listáját, valamint a `tripFields()` megfelelő ágát. A [triploader.cpp](triploader.cpp) ebből a szövegből tölti a mezőket: a `columnOf`, a `fillText`, a `fillAmounts` és a `readMetadata` a PDF felismerése, nem a CSV sora. A metaadatértékeket a `metadataFields()` adja, a `m_metadataHeaders` sorrendjében, és csak ott, ahol a `second` igaz. Az új mező alapértelmezett pipája a bal panelen a `kDefaultColumnHeaders`, a jobb panelen a `kDefaultErrorColumnHeaders` azonos nevű `second` értéke. A mentett `settings.json` ezeket felülírja, ha a fejléc neve megvan a megfelelő objektumban.
 
 A `QRangeModel` a konstruktorban `std::ref(m_rows)` hivatkozást kap. A konstruktor nem olvassa a tartományt, ezért a tagváltozó még üres lehet. A `m_rows` tartalmát csak `beginResetModel()` és `endResetModel()` között szabad cserélni.
 
@@ -459,17 +480,11 @@ Felmerült, hogy a beolvasó ismerje fel a táblát, és több rendelvényválto
 
 A vállalt korlát: a [triploader.cpp](triploader.cpp) koordinátákra és a `sorszám`, `neve`, `törzsszáma`, `Innen`, `Ide` feliratokra épül. Más elrendezésnél a mezők elcsúsznak. Nincs formátumfelismerés és nincs általános táblakinyerés.
 
-### Nyitott oszlopkészlet az ellenőrző nézeteken
-
-Felmerült, hogy a bal és a jobb nézet a séma minden mezőjét mutassa, vagy a látható oszlopokat a felhasználó válassza ki. Ez nem készült el.
-
-A vállalt korlát: a jobb panel alapértelmezett oszlopai a `kDefaultErrorColumnHeaders` szerint a sorszám, a honnan, a hova, a távolság és az összesen. Az indexek egy zárt, stabil sémára épülnek. Az export pipái ezt a készletet nem vezérlik. A jobb panel oszlopait a **Megjelenési beállítások** **Hibák megjelenítése** csoportjának **Adatok** pipái kapcsolják. A bal panel oszlopait a **Kiküldetési rendelvény megjelenítése** csoport **Adatok** pipái kapcsolják. A többi mező a `Trip` modellben megvan. A PDF-enkénti CSV-be, az összesített CSV-be és a Hibariport fejléceibe és soraiba csak a bejelölt metaadat- és útmezők kerülnek. A PDF-enkénti fejléc az export pillanatában elmentett `m_reportHeaders`.
-
 ### Egyetlen generált mezőleképezés
 
 Felmerült, hogy a `Trip` mezői, a tuple-protokoll, a fejlécek és a CSV-sor egy definícióból keletkezzenek. Generátor vagy makró nem készült.
 
-A vállalt korlát: a `Trip::get<I>()`, a `kDefaultColumnHeaders` lista és az `ErrorReportCreator::tripFields()` függvénye együtt alkotja a leképezést. A `tripColumnHeaders()` a `kDefaultColumnHeaders` neveit a `kColumnHeaderContext` kontextussal fordítja. A `tripFields()` a `m_columnHeaders` azonos indexű `second` értéke szerint hagy ki mezőt, a bent maradó mezők sorrendje a fejléc sorrendje. Dokumentumformátum-változáskor mindhárom helyet kézzel kell módosítani, a látható oszlopok indexeivel együtt.
+A vállalt korlát: a `Trip::get<I>()`, a `kDefaultColumnHeaders` lista és az `ErrorReportCreator::tripFields()` függvénye együtt alkotja a leképezést. A `kDefaultErrorColumnHeaders` ugyanazokat a fejlécneveket és ugyanazt a sorrendet használja, külön alapértelmezett pipákkal. A `tripColumnHeaders()` a `kDefaultColumnHeaders` neveit a `kColumnHeaderContext` kontextussal fordítja. A `tripFields()` a `m_columnHeaders` azonos indexű `second` értéke szerint hagy ki mezőt, a bent maradó mezők sorrendje a fejléc sorrendje. Dokumentumformátum-változáskor ezeket a helyeket kézzel kell módosítani.
 
 ### Önálló hibarekord azonosítóval
 
@@ -485,10 +500,10 @@ A vállalt korlát: a `TripLoader::loadDirectory` és a `TripChecker::check` a f
 
 ## Amikor a formátum vagy a szabály változik
 
-A [vállalt kompromisszumok](#tudatosan-vállalt-kompromisszumok) határai továbbra is érvényesek: a parser rögzített elrendezést olvas, a látható oszlopok zártak, a három leképezés kézi, a hibák pointerek, a munka a felület szálán fut.
+A [vállalt kompromisszumok](#tudatosan-vállalt-kompromisszumok) határai továbbra is érvényesek: a parser rögzített elrendezést olvas, a mezőleképezés kézi, a hibák pointerek, a munka a felület szálán fut. A két ellenőrző nézet oszlopait a felhasználó a **Megjelenési beállítások** pipáival kapcsolja.
 
 1. Oszlop vagy mező: a [séma táblája](#út-adatsémája) minden felsorolt helye.
 2. Koordináta vagy fejlécfelirat a PDF-ben: a `columnOf`, a `readMetadata` és az `Innen` / `Ide` feldolgozás a [triploader.cpp](triploader.cpp) fájlban.
 3. Hibafeltétel: kizárólag a `TripChecker::check`. A felület és az export a már kiszámolt pointerlistát használja.
-4. Új látható oszlop a jobb panelen: a `kDefaultErrorColumnHeaders`. A bal panelen a `kDefaultColumnHeaders` pipa. A Hibariport ettől függetlenül a bejelölt oszlopokat mutatja. Az export a fejlécet a `m_reportHeaders` tagba menti, a sor celláit a `metadataFields()` és a `tripFields()` adja. A következő exportig a `headerData()` ezt a mentett fejlécet használja.
+4. Új oszlop alapértelmezett pipája: a `kDefaultColumnHeaders` a bal panelen és az exportban, a `kDefaultErrorColumnHeaders` a jobb panelen. A nézetek a mentett megjelenítési pipákat követik. A Hibariport ettől függetlenül az export pipáit mutatja. Az export a fejlécet a `m_reportHeaders` tagba menti, a sor celláit a `metadataFields()` és a `tripFields()` adja. A következő exportig a `headerData()` ezt a mentett fejlécet használja.
 5. CSV-oszlop vagy fájlnév: az `ErrorReportCreator` privát metódusai, a `metadataFields`, a `tripFields`, a `reportRow`, a `selectedMetadataHeaders`, a `selectedColumnHeaders`, a `csvFileName` és a `sourceFileName`. A felhasználói mondatot a [README.md](README.md) Hibariport szakaszában is át kell írni, mert a súgó onnan olvas.
