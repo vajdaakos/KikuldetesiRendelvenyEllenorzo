@@ -42,7 +42,7 @@ void ErrorReportCreator::writeRow(QTextStream &out, const QStringList &fields)
     escaped.reserve(fields.size());
     for (const QString &field : fields)
         escaped.append(csvField(field));
-    out << escaped.join(QLatin1Char(',')) << '\n';
+    out << escaped.join(QLatin1Char(';')) << '\n';
 }
 
 
