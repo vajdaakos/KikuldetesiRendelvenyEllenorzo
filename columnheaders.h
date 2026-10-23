@@ -30,7 +30,7 @@ using HeaderSettings = QVector<std::pair<QString,bool>>;
 inline constexpr char kColumnHeaderContext[] = "ColumnHeaders";
 
 inline const HeaderSettings kDefaultColumnHeaders{
-    std::make_pair("Azonosító", true),
+    std::make_pair("Sorszám", true),
     std::make_pair("Forrásfájl", false),
     std::make_pair("Kezdés", true),
     std::make_pair("Befejezés", true),

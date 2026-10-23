@@ -32,7 +32,7 @@ A betöltés után az állapotsor mutatja a feldolgozott PDF-ek és az utak szá
 
 Az **Ellenőrzés** fül két, egyforma méretű panelből áll.
 
-A bal panel a betöltött utakat mutatja, egyszerre egy fájlt. Az **Előző** és a **Következő** gombbal, vagy a közöttük lévő legördülő listából lehet a fájlok között váltani. A bal panel csak az utat tartalmazó fájlokat mutatja, az út nélküli PDF-eket kihagyja. A táblázat oszlopai: azonosító, honnan, hova, távolság és összesen. A hosszú szövegek több sorba törnek.
+A bal panel a betöltött utakat mutatja, egyszerre egy fájlt. Az **Előző** és a **Következő** gombbal, vagy a közöttük lévő legördülő listából lehet a fájlok között váltani. A bal panel csak az utat tartalmazó fájlokat mutatja, az út nélküli PDF-eket kihagyja. A táblázat oszlopai: sorszám, honnan, hova, távolság és összesen. A hosszú szövegek több sorba törnek.
 
 A **Betöltöttek ellenőrzése** gomb csak akkor aktív, ha van betöltött út. Az ellenőrzés után:
 
@@ -48,7 +48,7 @@ Ha a két panel nem ugyanazt a fájlt mutatja, a bal panel **Előző** és **Kö
 A **Beállítások → Exportálási beállítások** menüpont modális ablakot nyit. Két csoport van benne.
 
 - A **Metaadatok:** a fájlnév, a sorszám, a munkavállaló és a törzsszám.
-- Az **Adatok:** az út mezői, az azonosítótól az összesenig.
+- Az **Adatok:** az út mezői, a sorszámtól az összesenig.
 
 A csoport címe melletti pipa a csoport minden jelölőnégyzetét be- vagy kikapcsolja. A csoport elemei ettől függetlenül egyenként is kapcsolhatók. Az ablak a betöltött pipákat mutatja. Ha nincs mentett fájl, a fájlnév és a forrásfájl nincs bejelölve, a többi oszlop igen.
 

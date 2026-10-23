@@ -73,7 +73,7 @@ A `TripManager` a kompozíció gyökere. A feladatokat a következő tagváltoz�
 | Tagváltozó | Osztály | Szerep |
 | --- | --- | --- |
 | `m_storage` | **`TripStorage`** | A betöltött PDF-ek útjainak és metaadatainak tulajdonosa, valamint a bal oldali táblázat `QRangeModel` modellje. Nyilvántartja az aktuális fájlt és kezeli a bal oldali fájlnavigációt. |
-| `m_errorstorage` | **`ErrorStorage`** | A hibás utakra mutató `const Trip *` mutatókat és a hozzájuk tartozó metaadat-mutatókat tárolja. A jobb oldali nézet `QRangeModel` modellje, és csak a hibát tartalmazó fájlok közötti navigációt kezeli. |
+| `m_errorstorage` | **`ErrorStorage`** | A hibás utakra mutató `const Trip *` pointereket és a hozzájuk tartozó metaadat-pointereket tárolja. A jobb oldali nézet `QRangeModel` modellje, és csak a hibát tartalmazó fájlok közötti navigációt kezeli. |
 | `m_tripchecker` | **`TripChecker`** | A betöltött utakra alkalmazza a hibafeltételt, és fájlonként feltölti az `ErrorStorage` hibalistáját. Sima C++ osztály, nem `QObject`. |
 | `m_reporter` | **`ErrorReportCreator`** | A Hibariport fül `QRangeModel` modellje. A kiszámolt hibákból felépíti a riportsorokat, majd elkészíti az összesített és a PDF-enkénti CSV-fájlokat. A `m_settings` tagja a `SettingsManager`. |
 
@@ -88,12 +88,12 @@ flowchart TD
     loader -->|"tripsLoaded, második slot"| loadResult["MainWindow::showLoadResult"]
     setTrips --> clear["ErrorStorage::clear()"]
     clear --> storage["TripStorage::setTrips()"]
-    storage --> metadata["Metaadat-mutatók beállítása"]
+    storage --> metadata["Metaadat-pointerek beállítása"]
     metadata --> left["Bal panel: az első fájl útjai"]
 
     left --> checkAction["Betöltöttek ellenőrzése"]
     checkAction --> beginUpdate["ErrorStorage::beginUpdate()"]
-    beginUpdate --> checker["TripChecker::check()<br/>A mutatók a TripStorage elemeire mutatnak"]
+    beginUpdate --> checker["TripChecker::check()<br/>A pointerek a TripStorage elemeire mutatnak"]
     checker --> endUpdate["ErrorStorage::endUpdate()<br/>Az első hibás fájlra áll, a sorok másolata elkészül"]
     endUpdate --> result{"Talált hibát?"}
     result -->|igen| right["Jobb panel: hibás utak"]
@@ -114,7 +114,7 @@ flowchart TD
 
 ### Osztálydiagram
 
-A `TripChecker` nem származik a `QObject` osztályból. A három modell a `QRangeModel` leszármazottja. A hibamutatók a `TripStorage` tulajdonában lévő `Trip` elemekre mutatnak.
+A `TripChecker` nem származik a `QObject` osztályból. A három modell a `QRangeModel` leszármazottja. A hibapointerek a `TripStorage` tulajdonában lévő `Trip` elemekre mutatnak.
 
 ```mermaid
 classDiagram
@@ -215,7 +215,7 @@ sequenceDiagram
     end
 ```
 
-Az ellenőrzés szinkron: a `check()` a `beginUpdate()` és az `endUpdate()` között tölti a mutatólistát.
+Az ellenőrzés szinkron: a `check()` a `beginUpdate()` és az `endUpdate()` között tölti a pointerlistát.
 
 ```mermaid
 sequenceDiagram
@@ -230,7 +230,7 @@ sequenceDiagram
     Ablak->>Manager: checkLoaded()
     Manager->>Hibák: beginUpdate()
     Manager->>Ellenőrző: check(utak, hibák)
-    Ellenőrző->>Utak: a Trip elemek címe
+    Ellenőrző->>Utak: a Trip elemek memóriacíme
     Manager->>Hibák: endUpdate()
     Manager->>Utak: refreshErrorMarks()
     Manager-->>Ablak: currentErrorFileChanged
@@ -241,7 +241,7 @@ sequenceDiagram
     end
 ```
 
-A hibasor kiválasztása cím szerint keres, nem az út azonosítója szerint.
+A hibasor kiválasztása memóriacím szerint keres, nem a sorszám szerint.
 
 ```mermaid
 sequenceDiagram
@@ -254,7 +254,7 @@ sequenceDiagram
     Felhasználó->>Ablak: kattintás a jobb tábla egy során
     Ablak->>Hibák: sourceAt(sor)
     Hibák-->>Ablak: const Trip*
-    Ablak->>Manager: focusTrip(mutató)
+    Ablak->>Manager: focusTrip(pointer)
     Manager->>Utak: showFileAt(fájl)
     Manager-->>Ablak: currentFileChanged, ha a fájl váltott
     Manager-->>Ablak: sorindex
@@ -345,7 +345,7 @@ A `Trip` mezői, a `kDefaultColumnHeaders` és a `tripColumnHeaders()` sorrendje
 
 | Index | Mező | Fejléc | Látható a két ellenőrző nézetben |
 | --- | --- | --- | --- |
-| 0 | `id` | Azonosító | igen |
+| 0 | `id` | Sorszám | igen |
 | 1 | `m_sourcefile` | Forrásfájl | nem |
 | 2 | `m_trip_date_begin` | Kezdés | nem |
 | 3 | `m_trip_date_end` | Befejezés | nem |
@@ -373,13 +373,13 @@ A `TripLoader::loadDirectory` csak a kijelölt könyvtár közvetlen fájljait n
 
 A szövegdobozokat a Poppler `text_list()` adja. A szó X-koordinátája a doboz bal éle, az Y a függőleges közép. A `kLineTolerance` értéke 3 pont: az ennél közelebbi Y-ú szavak egy sorba kerülnek, majd a soron belül X szerint rendeződnek.
 
-Egy új út ott kezdődik, ahol az azonosítóoszlopban (`x < 52`) olyan token áll, amely számjegyekből áll és ponttal végződik, például `12.`. A további, azonosító nélküli sorok a szövegmezőket folytatják. Az összegeket csak az azonosító sora tölti be, a számjegyek összefűzésével. Üres számmező 0.
+Egy új út ott kezdődik, ahol a sorszámoszlopban (`x < 52`) olyan token áll, amely számjegyekből áll és ponttal végződik, például `12.`. A további, sorszám nélküli sorok a szövegmezőket folytatják. Az összegeket csak a sorszám sora tölti be, a számjegyek összefűzésével. Üres számmező 0.
 
 Az oszlophatárok pontban, a szó bal szélétől:
 
 | X alsó határ | Oszlop |
 | --- | --- |
-| 0 | Azonosító |
+| 0 | Sorszám |
 | 52 | Kezdés |
 | 100 | Befejezés |
 | 148 | Cél |
@@ -406,13 +406,13 @@ A parser egy rögzített rendelvényelrendezést olvas. Más elrendezésű PDF-n
 
 A `TripStorage` minden betöltött fájlt a `m_trips` vektorban tart. A `m_rows` a bal tábla aktuális fájljának másolata. A `m_file_metadata` fájlonként egy `TripMetaData`. A `m_trip_meta_data` ennek a vektornak az aktuális eleméről készült másolat, ezt mutatja a bal `TripMetadataWidget`. A bal előző és következő gomb, valamint a `currentFileCombo` az utat tartalmazó fájlokon lép végig, a hibátlanokon is. Az üres útjú, de sikeresen megnyitott fájl a `m_trips` vektorban marad, hogy a fájlindexek egyezzenek az `ErrorStorage` indexeivel, a navigáció viszont kihagyja: a `hasTripsAt()` dönt. Betöltéskor a bal panel az első utat tartalmazó fájlra áll; ha egyik fájlban sincs út, az aktuális index -1. A lista választása a `TripManager::showFile()` slotot hívja.
 
-Az `ErrorStorage::m_triperrors` típusa `QVector<QVector<const Trip *>>`. A mutatók a `TripStorage::m_trips` elemeire mutatnak, nem a megjelenített másolatokra. Az azonosítók ütközhetnek, ezért a jobb sorból a bal sorra ugrás a mutató címét hasonlítja össze, nem az azonosítót. A jobb tábla `m_rows` vektora ezeknek a `Trip` objektumoknak a másolata, hogy a `QRangeModel` a tuple-oszlopokat meg tudja jeleníteni. Egy mutatóvektorból a `Trip` oszlopai nem jönnének ki.
+Az `ErrorStorage::m_triperrors` típusa `QVector<QVector<const Trip *>>`. A pointerek a `TripStorage::m_trips` elemeire mutatnak, nem a megjelenített másolatokra. A sorszámok ütközhetnek, ezért a jobb sorból a bal sorra ugrás a pointer memóriacímét hasonlítja össze, nem a sorszámot. A jobb tábla `m_rows` vektora ezeknek a `Trip` objektumoknak a másolata, hogy a `QRangeModel` a tuple-oszlopokat meg tudja jeleníteni. Egy pointervektorból a `Trip` oszlopai nem jönnének ki.
 
-Az `ErrorStorage::m_file_metadata` konstans mutatókat tárol a `TripStorage` metaadat-vektorába. A `setTrips` először törli a hibákat, utána lecseréli az utakat, és csak ezután állítja be a mutatókat. Így a mutatók nem a signal argumentumának ideiglenes vektorába mutatnak. Új betöltés előtt a `clear()` eldobja a mutatókat és a hibasorokat. Ellenőrzés után a forráskonténert nem szabad átrendezni, mert a hibamutatók érvénytelenné válnának.
+Az `ErrorStorage::m_file_metadata` konstans pointereket tárol a `TripStorage` metaadat-vektorába. A `setTrips` először törli a hibákat, utána lecseréli az utakat, és csak ezután állítja be a pointereket. Így a pointerek nem a signal argumentumának ideiglenes vektorába mutatnak. Új betöltés előtt a `clear()` eldobja a pointereket és a hibasorokat. Ellenőrzés után a forráskonténert nem szabad átrendezni, mert a hibapointerek érvénytelenné válnának.
 
-A `TripChecker::check` a kimeneti vektort a fájlok számával azonos méretűre állítja, fájlonként üres belső vektorral. Egy út akkor hiba, ha `m_from == m_to` és `m_total_cost > 0`. A `checkLoaded` a `beginUpdate()` és az `endUpdate()` között hívja. A hívásnak szinkronnak kell maradnia: az `endUpdate` a már kitöltött vektorból építi a látható sorokat, és az első nem üres hibafájlra áll. Utána a `TripStorage::refreshErrorMarks()` `dataChanged` signalt küld a bal tábla soraira. A `TripStorage` a `TripManager` konstruktorában kapja meg az `ErrorStorage` konstans mutatóját. A nézet a szerepeket a `multiData()` függvényen kéri. A `QRangeModel::multiData()` nem hívja a virtuális `data()` függvényt, ezért a színezést a `TripStorage::multiData()` írja a `BackgroundRole` és a `ForegroundRole` mezőbe, `QBrush` értékként. A `data()` ugyanezt adja vissza. A döntés az `ErrorStorage::isError()` eredménye: a hibás sor háttere piros, a szövege fekete. Az összevetés a `m_trips` elemének címével történik, nem a megjelenített másolatéval. Fájlváltáskor a modell-reset újraszámolja a színeket, új betöltéskor a hibák törlése eltünteti őket. A jobb előző és következő gomb, valamint a `currentErrorFileCombo` a nullmutatóktól és az üres fájloktól eltekintve lép. A lista választása a `TripManager::showErrorFile()` slotot hívja. A jobb fájlnév a `TripStorage::fileNameAt` eredménye, üres útjú fájlnál a metaadat `m_filename` mezője.
+A `TripChecker::check` a kimeneti vektort a fájlok számával azonos méretűre állítja, fájlonként üres belső vektorral. Egy út akkor hiba, ha `m_from == m_to` és `m_total_cost > 0`. A `checkLoaded` a `beginUpdate()` és az `endUpdate()` között hívja. A hívásnak szinkronnak kell maradnia: az `endUpdate` a már kitöltött vektorból építi a látható sorokat, és az első nem üres hibafájlra áll. Utána a `TripStorage::refreshErrorMarks()` `dataChanged` signalt küld a bal tábla soraira. A `TripStorage` a `TripManager` konstruktorában kapja meg az `ErrorStorage` konstans pointerét. A nézet a szerepeket a `multiData()` függvényen kéri. A `QRangeModel::multiData()` nem hívja a virtuális `data()` függvényt, ezért a színezést a `TripStorage::multiData()` írja a `BackgroundRole` és a `ForegroundRole` mezőbe, `QBrush` értékként. A `data()` ugyanezt adja vissza. A döntés az `ErrorStorage::isError()` eredménye: a hibás sor háttere piros, a szövege fekete. Az összevetés a `m_trips` elemének memóriacímével történik, nem a megjelenített másolatéval. Fájlváltáskor a modell-reset újraszámolja a színeket, új betöltéskor a hibák törlése eltünteti őket. A jobb előző és következő gomb, valamint a `currentErrorFileCombo` a null pointerektől és az üres fájloktól eltekintve lép. A lista választása a `TripManager::showErrorFile()` slotot hívja. A jobb fájlnév a `TripStorage::fileNameAt` eredménye, üres útjú fájlnál a metaadat `m_filename` mezője.
 
-A jobb tábla `clicked` és `currentRowChanged` signalja is a `showSelectedError` slotot hívja. A `currentRowChanged` az aktuális sor újbóli kattintására nem fut le, a `clicked` igen. A `focusTrip` megkeresi a mutatót, szükség esetén fájlt vált a bal panelen, és visszaadja a sorindexet. A felület kijelöli a sort, és középre görgeti.
+A jobb tábla `clicked` és `currentRowChanged` signalja is a `showSelectedError` slotot hívja. A `currentRowChanged` az aktuális sor újbóli kattintására nem fut le, a `clicked` igen. A `focusTrip` megkeresi a pointert, szükség esetén fájlt vált a bal panelen, és visszaadja a sorindexet. A felület kijelöli a sort, és középre görgeti.
 
 ## Felület
 
@@ -424,7 +424,7 @@ A könyvtárablak `QFileDialog::Directory` módban nyílik. A `ShowDirsOnly` ér
 
 A `TripMetadataWidget` a négy címkét mindkét panelen ugyanúgy rajzolja: középre igazított, tördelhető szöveg. A `setMetadata({})` üres állapotot mutat. A két panel fájlneve `QComboBox`: a `currentFileCombo` az utat tartalmazó fájlokat kínálja, a `currentErrorFileCombo` csak a hibát tartalmazókat. A választás az `activated` signalon megy a `showFile()` és a `showErrorFile()` slotra, ezért a lista programozott frissítése nem vált fájlt újra. A piros, félkövér stílus a bal listán jelenik meg, ha a két panel fájlneve eltér. A metaadat „Fájlnév” címkéje nem kap ilyen stílust.
 
-A **Betöltöttek ellenőrzése** gomb akkor aktív, ha legalább egy fájlban van út. A **Hibák exportálása** akkor aktív, ha bármely fájlban van nem null hibamutató. Ha az ellenőrzés nem talál hibát, információs ablak jelenik meg. Ha talál, a jobb tábla az első hibás sorra ugrik.
+A **Betöltöttek ellenőrzése** gomb akkor aktív, ha legalább egy fájlban van út. A **Hibák exportálása** akkor aktív, ha bármely fájlban van nem null hibapointer. Ha az ellenőrzés nem talál hibát, információs ablak jelenik meg. Ha talál, a jobb tábla az első hibás sorra ugrik.
 
 A három nézet `QTableView`, közös beállításuk a `configureTripView`. A bal a `tripTable`, a jobb az `errorTable`, a riport a `reportTable`. A `WrappingItemDelegate` a tördelt szöveget középre rajzolja, és 2 pontos rácsot fest. A jobb tábla és a riport fejléce félkövér. Az oszlopok interaktívak, az utolsó szakasz nyúlik. Szakaszátméretezéskor és az oszlopok beállítása után a tábla `resizeRowsToContents()` hívást kap, a sormagasság a tördelt szöveghez igazodik. Az oszlopszélesség alsó határa a fejléc mérete plusz 12 pont. A felső határ `qMax(minimum, 280)`: ha a fejléc 12 ponttal együtt 280 alatt marad, az oszlop legfeljebb 280 pontos, hosszabb fejlécnél a felső határ a minimummal együtt 280 fölé nő. A riport ugyanezt a számítást minden oszlopára alkalmazza, modell-resetkor és induláskor.
 
@@ -436,7 +436,7 @@ A szülő widgetet a `QObject::parent()` láncon keresi. A `QRangeModel::parent(
 
 A célkönyvtár a betöltött könyvtár `report` almappája. Ha a mappa nem hozható létre, figyelmeztetés jelenik meg, és a metódus visszatér. Az összesített fájl neve `report_yyyy_MM_dd_HH-mm.csv`. Az időbélyeg kötőjelet használ, kettőspontot nem. A fájl UTF-8, BOM-mal, az idézőjeles mezőket megduplázott idézőjel védi. A fejléce és a sorok ugyanabban a lépésben készülnek. A fejléc a `m_reportHeaders` tagba kerül, és a Hibariport fül a következő exportig ezt mutatja, akkor is, ha közben a beállítások változnak. A sorok a hibás utak: elöl a bejelölt metaadatértékek, utánuk a `tripFields()` csak azokat az útmezőket teszi, amelyeknél a `m_columnHeaders` `second` értéke igaz. Egy kikapcsolt oszlop a fejlécből és a cellákból is kimarad. A megnyitás és a stream írása külön figyelmeztetést ad, és ilyenkor a PDF-enkénti export el sem kezdődik.
 
-A PDF-enkénti CSV csak azokat a fájlokat tartalmazza, amelyeknek van legalább egy nem null hibamutatója. A tartalma a hibás utak. A fejléc az összesített riport `m_reportHeaders` listája, ugyanaz, amit az összesített CSV és a Hibariport használ. A sorok a bejelölt metaadatértékekkel kezdődnek, utánuk a bejelölt útmezők következnek. A fájlnév `Munkavállaló_neve-forrásfájl.csv`: a szóközök aláhúzásjelek, a forrásnév a `completeBaseName()`, tehát a `.pdf` kiterjesztés nincs benne. Egy fájl írási hibája nem állítja meg a többit. A hibák a `fileExportErrors` listába kerülnek.
+A PDF-enkénti CSV csak azokat a fájlokat tartalmazza, amelyeknek van legalább egy nem null hibapointere. A tartalma a hibás utak. A fejléc az összesített riport `m_reportHeaders` listája, ugyanaz, amit az összesített CSV és a Hibariport használ. A sorok a bejelölt metaadatértékekkel kezdődnek, utánuk a bejelölt útmezők következnek. A fájlnév `Munkavállaló_neve-forrásfájl.csv`: a szóközök aláhúzásjelek, a forrásnév a `completeBaseName()`, tehát a `.pdf` kiterjesztés nincs benne. Egy fájl írási hibája nem állítja meg a többit. A hibák a `fileExportErrors` listába kerülnek.
 
 A záró ablak ettől a listától függ.
 
@@ -463,7 +463,7 @@ A vállalt korlát: a [triploader.cpp](triploader.cpp) koordinátákra és a `so
 
 Felmerült, hogy a bal és a jobb nézet a séma minden mezőjét mutassa, vagy a látható oszlopokat a felhasználó válassza ki. Ez nem készült el.
 
-A vállalt korlát: a `kVisibleColumns` értéke `{0, 5, 6, 7, 12}`, vagyis azonosító, honnan, hova, távolság és összesen. Az indexek egy zárt, stabil sémára épülnek. Az export pipái ezt a zárt készletet nem vezérlik. A többi mező a `Trip` modellben megvan, és az ellenőrző felületen rejtett. A PDF-enkénti CSV-be, az összesített CSV-be és a Hibariport fejléceibe és soraiba csak a bejelölt metaadat- és útmezők kerülnek. A PDF-enkénti fejléc az export pillanatában elmentett `m_reportHeaders`.
+A vállalt korlát: a `kVisibleColumns` értéke `{0, 5, 6, 7, 12}`, vagyis sorszám, honnan, hova, távolság és összesen. Az indexek egy zárt, stabil sémára épülnek. Az export pipái ezt a zárt készletet nem vezérlik. A többi mező a `Trip` modellben megvan, és az ellenőrző felületen rejtett. A PDF-enkénti CSV-be, az összesített CSV-be és a Hibariport fejléceibe és soraiba csak a bejelölt metaadat- és útmezők kerülnek. A PDF-enkénti fejléc az export pillanatában elmentett `m_reportHeaders`.
 
 ### Egyetlen generált mezőleképezés
 
@@ -473,9 +473,9 @@ A vállalt korlát: a `Trip::get<I>()`, a `kDefaultColumnHeaders` lista és az `
 
 ### Önálló hibarekord azonosítóval
 
-Felmerült, hogy az `ErrorStorage` saját út-példányokat vagy stabil azonosítókat tároljon, és a bal panelre ugrás ne függjön a forráskonténer címétől. Ez nem készült el. A megjelenített sor másolat, de a kiválasztás kulcsa a mutató.
+Felmerült, hogy az `ErrorStorage` saját út-példányokat vagy stabil azonosítókat tároljon, és a bal panelre ugrás ne függjön a forráskonténer memóriacímétől. Ez nem készült el. A megjelenített sor másolat, de a kiválasztás kulcsa a pointer.
 
-A vállalt korlát: az `ErrorStorage` `const Trip *` mutatókat tart a `TripStorage` elemeire. Új betöltéskor a hibák törlése megelőzi az utak cseréjét. Ellenőrzés után a forráskonténer nem módosul, nem rendeződik át, és nem nő újra, mert a mutatók akkor érvényüket vesztenék. Az út `id` mezője nem azonosító a fájlok között, ezért összekapcsolásra nem használható.
+A vállalt korlát: az `ErrorStorage` `const Trip *` pointereket tart a `TripStorage` elemeire. Új betöltéskor a hibák törlése megelőzi az utak cseréjét. Ellenőrzés után a forráskonténer nem módosul, nem rendeződik át, és nem nő újra, mert a pointerek akkor érvényüket vesztenék. Az út `id` mezője nem azonosító a fájlok között, ezért összekapcsolásra nem használható.
 
 ### Háttérszál és folyamatjelzés
 
@@ -485,10 +485,10 @@ A vállalt korlát: a `TripLoader::loadDirectory` és a `TripChecker::check` a f
 
 ## Amikor a formátum vagy a szabály változik
 
-A [vállalt kompromisszumok](#tudatosan-vállalt-kompromisszumok) határai továbbra is érvényesek: a parser rögzített elrendezést olvas, a látható oszlopok zártak, a három leképezés kézi, a hibák mutatók, a munka a felület szálán fut.
+A [vállalt kompromisszumok](#tudatosan-vállalt-kompromisszumok) határai továbbra is érvényesek: a parser rögzített elrendezést olvas, a látható oszlopok zártak, a három leképezés kézi, a hibák pointerek, a munka a felület szálán fut.
 
 1. Oszlop vagy mező: a [séma táblája](#út-adatsémája) minden felsorolt helye.
 2. Koordináta vagy fejlécfelirat a PDF-ben: a `columnOf`, a `readMetadata` és az `Innen` / `Ide` feldolgozás a [triploader.cpp](triploader.cpp) fájlban.
-3. Hibafeltétel: kizárólag a `TripChecker::check`. A felület és az export a már kiszámolt mutatólistát használja.
+3. Hibafeltétel: kizárólag a `TripChecker::check`. A felület és az export a már kiszámolt pointerlistát használja.
 4. Új látható oszlop az ellenőrző nézeteken: a `kVisibleColumns`. A Hibariport ettől függetlenül a bejelölt oszlopokat mutatja. Az export a fejlécet a `m_reportHeaders` tagba menti, a sor celláit a `metadataFields()` és a `tripFields()` adja. A következő exportig a `headerData()` ezt a mentett fejlécet használja.
 5. CSV-oszlop vagy fájlnév: az `ErrorReportCreator` privát metódusai, a `metadataFields`, a `tripFields`, a `reportRow`, a `selectedMetadataHeaders`, a `selectedColumnHeaders`, a `csvFileName` és a `sourceFileName`. A felhasználói mondatot a [README.md](README.md) Hibariport szakaszában is át kell írni, mert a súgó onnan olvas.
