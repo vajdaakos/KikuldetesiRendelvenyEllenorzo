@@ -445,7 +445,7 @@ A záró ablak ettől a listától függ.
 
 ## Súgó és névjegy
 
-Az [icons.qrc](icons.qrc) a `:/icons/app.png` ikont és a `:/help/readme.md` aliast tartalmazza. Az alias a [README.md](README.md) fájlra mutat, ezért a súgó a használati leírással együtt frissül, ha a program újrafordul. Az **F1** és a **Súgó** menü ugyanazt a nem modális ablakot nyitja. A `QTextBrowser::setMarkdown` rajzolja ki. Az ablak a bezárásig megmarad, ismételt megnyitáskor előre kerül.
+Az [icons.qrc](icons.qrc) a `:/icons/app.png` ikont és a `:/help/readme.md` aliast tartalmazza. Az alias a [README.md](README.md) fájlra mutat, ezért a súgó a használati leírással együtt frissül, ha a program újrafordul. A megjelenítés előtt a fájl eleji HTML-komment, a GPLv3 fejléc, lekerül. A Qt markdown a kommentben lévő `<https://www.gnu.org/licenses/>` szöveget HTML-elemnek veszi, és enélkül a súgó többi részét elnyeli. Az **F1** és a **Súgó** menü ugyanazt a nem modális ablakot nyitja. A `QTextBrowser::setMarkdown` rajzolja ki. Az ablak a bezárásig megmarad, ismételt megnyitáskor előre kerül.
 
 A **Névjegy** a súgó alatt, elválasztó után van. A szöveg középre igazított: a terméknév, a `version.h` értékeiből összeállított `v MAJOR.MINOR.PATCH`, a `Copyright (C) 2026 Vajda Ákos Péter` sor, az e-mail-cím, majd a GPLv3 angol és magyar közleménye. A `https://www.gnu.org/licenses/` cím szöveg, nem hivatkozás. A súgó nem tartalmaz licencszakaszt. A doboz a főablak ikonját mutatja.
 

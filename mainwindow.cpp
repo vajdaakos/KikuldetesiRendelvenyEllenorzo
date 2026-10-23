@@ -551,10 +551,17 @@ void MainWindow::showHelp()
         auto *browser = new QTextBrowser(dialog);
         browser->setOpenExternalLinks(true);
         QFile helpFile(QStringLiteral(":/help/readme.md"));
-        if (helpFile.open(QIODevice::ReadOnly))
-            browser->setMarkdown(QString::fromUtf8(helpFile.readAll()));
-        else
+        if (helpFile.open(QIODevice::ReadOnly)) {
+            QString helpText = QString::fromUtf8(helpFile.readAll());
+            if (helpText.startsWith(QStringLiteral("<!--"))) {
+                const int end = helpText.indexOf(QStringLiteral("-->"));
+                if (end >= 0)
+                    helpText.remove(0, end + 3);
+            }
+            browser->setMarkdown(helpText);
+        } else {
             browser->setPlainText(tr("A súgó nem tölthető be."));
+        }
         layout->addWidget(browser);
         connect(dialog, &QObject::destroyed, this, [this] { m_helpWindow = nullptr; });
         m_helpWindow = dialog;
