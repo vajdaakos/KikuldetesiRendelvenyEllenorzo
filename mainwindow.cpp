@@ -122,20 +122,42 @@ public:
         const QString text = opt.text;
         opt.text.clear();
 
+        const bool selected = opt.state & QStyle::State_Selected;
+        const bool active = opt.state & QStyle::State_Active;
+        const QBrush itemBackground = opt.backgroundBrush;
+        // An unfocused view paints its selection with the inactive Windows
+        // highlight: a gray bar and white HighlightedText. That covers the
+        // error-row color and is hard to read, so keep the model background
+        // and the normal text color until the view is active again.
+        const bool keepItemBackground = itemBackground.style() != Qt::NoBrush
+                                        && !(selected && active);
+        const QStyleOptionViewItem textOption = opt;
+        if (keepItemBackground) {
+            opt.state &= ~QStyle::State_Selected;
+            opt.state &= ~QStyle::State_MouseOver;
+        }
+
         const QWidget *widget = opt.widget;
         QStyle *style = widget ? widget->style() : QApplication::style();
         style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, widget);
+        if (keepItemBackground)
+            painter->fillRect(option.rect, itemBackground);
         if (!text.isEmpty()) {
-            const QRect textRect = textArea(style->subElementRect(QStyle::SE_ItemViewItemText, &opt, widget));
+            const QRect textRect = textArea(style->subElementRect(QStyle::SE_ItemViewItemText, &textOption, widget));
             QTextLayout layout(text, opt.font);
             layoutText(layout, textRect.width());
             const qreal yOffset = qMax(0.0, (textRect.height() - layout.boundingRect().height()) / 2.0);
+            QPalette::ColorGroup group = QPalette::Active;
+            if (!(option.state & QStyle::State_Enabled))
+                group = QPalette::Disabled;
+            else if (!active)
+                group = QPalette::Inactive;
+            const QPalette::ColorRole role = selected && active ? QPalette::HighlightedText
+                                                                : QPalette::Text;
 
             painter->save();
             painter->setClipRect(textRect);
-            painter->setPen(opt.palette.color(opt.state & QStyle::State_Selected
-                                                   ? QPalette::HighlightedText
-                                                   : QPalette::Text));
+            painter->setPen(opt.palette.color(group, role));
             layout.draw(painter, textRect.topLeft() + QPointF(0, yOffset));
             painter->restore();
         }
