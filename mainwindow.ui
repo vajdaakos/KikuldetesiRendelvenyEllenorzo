@@ -316,6 +316,7 @@
     <property name="title">
      <string>Beállítások</string>
     </property>
+    <addaction name="actionDisplaySettings"/>
     <addaction name="actionSettings"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -342,6 +343,11 @@
   <action name="actionSettings">
    <property name="text">
     <string>Exportálási beállítások</string>
+   </property>
+  </action>
+  <action name="actionDisplaySettings">
+   <property name="text">
+    <string>Megjelenési beállítások</string>
    </property>
   </action>
   <action name="actionHelp">

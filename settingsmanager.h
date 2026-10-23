@@ -31,6 +31,10 @@ public:
 
     const HeaderSettings &columnHeaders() const { return m_columnHeaders; }
     const HeaderSettings &metadataHeaders() const { return m_metadataHeaders; }
+    const HeaderSettings &displayColumnHeaders() const { return m_displayColumnHeaders; }
+    const HeaderSettings &displayMetadataHeaders() const { return m_displayMetadataHeaders; }
+    const HeaderSettings &errorColumnHeaders() const { return m_errorColumnHeaders; }
+    const HeaderSettings &errorMetadataHeaders() const { return m_errorMetadataHeaders; }
 
 signals:
     void settingsLoaded(const HeaderSettings &columnHeaders,
@@ -40,11 +44,20 @@ public slots:
     void readSettings();
     void applySettings(const HeaderSettings &columnHeaders,
                        const HeaderSettings &metadataHeaders);
+    void applyDisplaySettings(const HeaderSettings &columnHeaders,
+                              const HeaderSettings &metadataHeaders,
+                              const HeaderSettings &errorColumnHeaders,
+                              const HeaderSettings &errorMetadataHeaders);
 
 private:
+    void writeSettingsFile();
 
     HeaderSettings m_columnHeaders = kDefaultColumnHeaders;
     HeaderSettings m_metadataHeaders = kDefaultMetadataHeaders;
+    HeaderSettings m_displayColumnHeaders = kDefaultColumnHeaders;
+    HeaderSettings m_displayMetadataHeaders = kDefaultMetadataHeaders;
+    HeaderSettings m_errorColumnHeaders = kDefaultErrorColumnHeaders;
+    HeaderSettings m_errorMetadataHeaders = kDefaultMetadataHeaders;
 };
 
 #endif

@@ -52,6 +52,22 @@ inline const HeaderSettings kDefaultMetadataHeaders{
     std::make_pair("Törzsszám", false)
 };
 
+inline const HeaderSettings kDefaultErrorColumnHeaders{
+    std::make_pair("Sorszám", true),
+    std::make_pair("Forrásfájl", false),
+    std::make_pair("Kezdés", false),
+    std::make_pair("Befejezés", false),
+    std::make_pair("Cél", false),
+    std::make_pair("Honnan", true),
+    std::make_pair("Hova", true),
+    std::make_pair("Távolság", true),
+    std::make_pair("Üzemanyagár", false),
+    std::make_pair("Üzemanyagköltség", false),
+    std::make_pair("Fenntartási szorzó 1", false),
+    std::make_pair("Fenntartási szorzó 2", false),
+    std::make_pair("Összesen", true)
+};
+
 inline QStringList tripColumnHeaders()
 {
     QStringList headers;

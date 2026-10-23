@@ -89,6 +89,15 @@ void warnSaveFailed(QObject *object, bool previousFileRemains)
     showCenteredWarning(object, text);
 }
 
+QJsonObject settingsSection(const HeaderSettings &metadataHeaders,
+                            const HeaderSettings &columnHeaders)
+{
+    QJsonObject section;
+    section.insert(QStringLiteral("metadataheaders"), headerArray(metadataHeaders));
+    section.insert(QStringLiteral("columnheaders"), headerArray(columnHeaders));
+    return section;
+}
+
 void readHeaders(const QJsonObject &root, const QString &key,
                  HeaderSettings &headers)
 {
@@ -133,20 +142,39 @@ void SettingsManager::readSettings()
         return;
     }
     const QJsonObject root = document.object();
-    readHeaders(root, QStringLiteral("columnheaders"), m_columnHeaders);
-    readHeaders(root, QStringLiteral("metadataheaders"), m_metadataHeaders);
+    const QJsonValue exportSettings = root.value(QStringLiteral("Exportálási beállítások"));
+    if (exportSettings.isObject()) {
+        const QJsonObject section = exportSettings.toObject();
+        readHeaders(section, QStringLiteral("columnheaders"), m_columnHeaders);
+        readHeaders(section, QStringLiteral("metadataheaders"), m_metadataHeaders);
+    } else {
+        readHeaders(root, QStringLiteral("columnheaders"), m_columnHeaders);
+        readHeaders(root, QStringLiteral("metadataheaders"), m_metadataHeaders);
+    }
+    const QJsonValue displaySettings = root.value(QStringLiteral("Kiküldetési rendelvény megjelenítése"));
+    if (displaySettings.isObject()) {
+        const QJsonObject section = displaySettings.toObject();
+        readHeaders(section, QStringLiteral("columnheaders"), m_displayColumnHeaders);
+        readHeaders(section, QStringLiteral("metadataheaders"), m_displayMetadataHeaders);
+    }
+    const QJsonValue errorSettings = root.value(QStringLiteral("Hibák megjelenítése"));
+    if (errorSettings.isObject()) {
+        const QJsonObject section = errorSettings.toObject();
+        readHeaders(section, QStringLiteral("columnheaders"), m_errorColumnHeaders);
+        readHeaders(section, QStringLiteral("metadataheaders"), m_errorMetadataHeaders);
+    }
     emit settingsLoaded(m_columnHeaders, m_metadataHeaders);
 }
 
-void SettingsManager::applySettings(const HeaderSettings &columnHeaders,
-                                    const HeaderSettings &metadataHeaders)
+void SettingsManager::writeSettingsFile()
 {
-    m_columnHeaders = columnHeaders;
-    m_metadataHeaders = metadataHeaders;
-
     QJsonObject root;
-    root.insert(QStringLiteral("metadataheaders"), headerArray(metadataHeaders));
-    root.insert(QStringLiteral("columnheaders"), headerArray(columnHeaders));
+    root.insert(QStringLiteral("Exportálási beállítások"),
+                settingsSection(m_metadataHeaders, m_columnHeaders));
+    root.insert(QStringLiteral("Kiküldetési rendelvény megjelenítése"),
+                settingsSection(m_displayMetadataHeaders, m_displayColumnHeaders));
+    root.insert(QStringLiteral("Hibák megjelenítése"),
+                settingsSection(m_errorMetadataHeaders, m_errorColumnHeaders));
     const QByteArray bytes = QJsonDocument(root).toJson(QJsonDocument::Indented);
     const bool previousFileRemains = QFileInfo::exists(settingsFilePath());
 
@@ -155,4 +183,24 @@ void SettingsManager::applySettings(const HeaderSettings &columnHeaders,
     const bool written = opened && file.write(bytes) == bytes.size() && file.error() == QFile::NoError;
     if (!written || !file.commit())
         warnSaveFailed(this, previousFileRemains);
+}
+
+void SettingsManager::applySettings(const HeaderSettings &columnHeaders,
+                                    const HeaderSettings &metadataHeaders)
+{
+    m_columnHeaders = columnHeaders;
+    m_metadataHeaders = metadataHeaders;
+    writeSettingsFile();
+}
+
+void SettingsManager::applyDisplaySettings(const HeaderSettings &columnHeaders,
+                                           const HeaderSettings &metadataHeaders,
+                                           const HeaderSettings &errorColumnHeaders,
+                                           const HeaderSettings &errorMetadataHeaders)
+{
+    m_displayColumnHeaders = columnHeaders;
+    m_displayMetadataHeaders = metadataHeaders;
+    m_errorColumnHeaders = errorColumnHeaders;
+    m_errorMetadataHeaders = errorMetadataHeaders;
+    writeSettingsFile();
 }

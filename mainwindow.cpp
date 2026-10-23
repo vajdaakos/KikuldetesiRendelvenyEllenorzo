@@ -46,6 +46,7 @@
 #include <QSplitter>
 #include <QTabWidget>
 #include <QTextBrowser>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QPainter>
 #include <QStyle>
@@ -56,7 +57,6 @@
 #include <QtMath>
 
 #include <algorithm>
-#include <array>
 
 namespace {
 
@@ -317,8 +317,16 @@ MainWindow::MainWindow(QWidget *parent)
             m_tripmanager.reporter(), &ErrorReportCreator::applyLoadedSettings);
     connect(this, &MainWindow::exportSettingsAccepted,
             m_tripmanager.reporter()->getSettingsManager(), &SettingsManager::applySettings);
+    connect(this, &MainWindow::displaySettingsAccepted,
+            this, &MainWindow::applyDisplayColumns);
+    connect(this, &MainWindow::displaySettingsAccepted,
+            m_tripmanager.reporter()->getSettingsManager(), &SettingsManager::applyDisplaySettings);
+    connect(ui->actionDisplaySettings, &QAction::triggered,
+            this, &MainWindow::showDisplaySettings);
     updateActionButtons();
     m_tripmanager.reporter()->getSettingsManager()->readSettings();
+    showTripColumns(ui->tripTable);
+    showTripColumns(ui->errorTable);
 
 }
 
@@ -381,17 +389,15 @@ void MainWindow::configureTripView(QAbstractItemView *view, QHeaderView *header,
 
 namespace {
 
-template <typename View>
-void applyVisibleColumns(View *view, QHeaderView *header)
+void applyCheckedColumns(QTableView *view, const HeaderSettings &columns)
 {
-    static constexpr std::array kVisibleColumns{0, 5, 6, 7, 12};
     if (!view->model())
         return;
 
-    const int columns = view->model()->columnCount();
-    for (int column = 0; column < columns; ++column) {
-        const bool visible = std::find(kVisibleColumns.begin(), kVisibleColumns.end(), column)
-                             != kVisibleColumns.end();
+    QHeaderView *header = view->horizontalHeader();
+    const int count = view->model()->columnCount();
+    for (int column = 0; column < count; ++column) {
+        const bool visible = column < columns.size() && columns.at(column).second;
         view->setColumnHidden(column, !visible);
         if (!visible)
             continue;
@@ -406,7 +412,11 @@ void applyVisibleColumns(View *view, QHeaderView *header)
 
 void MainWindow::showTripColumns(QTableView *view)
 {
-    applyVisibleColumns(view, view->horizontalHeader());
+    const SettingsManager *settings = m_tripmanager.reporter()->getSettingsManager();
+    const HeaderSettings &columns = view == ui->errorTable
+        ? settings->errorColumnHeaders()
+        : settings->displayColumnHeaders();
+    applyCheckedColumns(view, columns);
     view->resizeRowsToContents();
 }
 
@@ -560,6 +570,81 @@ void MainWindow::showExportSettings()
     const HeaderSettings metadataHeaders =
         headersFromDialog(metadata, metadataBlock.boxes);
     emit exportSettingsAccepted(columnHeaders, metadataHeaders);
+}
+
+void MainWindow::showDisplaySettings()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Megjelenési beállítások"));
+    dialog.setWindowModality(Qt::ApplicationModal);
+    const QString tripGroupTitle = tr("Kiküldetési rendelvény megjelenítése");
+    const QString errorGroupTitle = tr("Hibák megjelenítése");
+    const int titleWidth = qMax(dialog.fontMetrics().horizontalAdvance(dialog.windowTitle()),
+                                dialog.fontMetrics().horizontalAdvance(tripGroupTitle)
+                                    + dialog.fontMetrics().horizontalAdvance(errorGroupTitle) + 64);
+    const int titleButtons = dialog.style()->pixelMetric(QStyle::PM_TitleBarButtonSize);
+    dialog.setMinimumWidth(titleWidth + qMax(titleButtons, 24) * 4 + 48);
+    auto *layout = new QVBoxLayout(&dialog);
+    const SettingsManager *settings = m_tripmanager.reporter()->getSettingsManager();
+    HeaderSettings metadata = settings->displayMetadataHeaders();
+    HeaderSettings columns = settings->displayColumnHeaders();
+    HeaderSettings errorMetadata = settings->errorMetadataHeaders();
+    HeaderSettings errorColumns = settings->errorColumnHeaders();
+    auto *groups = new QHBoxLayout;
+    groups->setAlignment(Qt::AlignTop);
+    auto *displayGroup = new QGroupBox(tripGroupTitle, &dialog);
+    auto *displayLayout = new QVBoxLayout(displayGroup);
+    const HeaderCheckBlock metadataBlock = headerCheckBlock(displayGroup, tr("Metaadatok:"), metadata);
+    const HeaderCheckBlock columnBlock = headerCheckBlock(displayGroup, tr("Adatok:"), columns);
+    displayLayout->addWidget(metadataBlock.group);
+    displayLayout->addWidget(columnBlock.group);
+    auto *errorGroup = new QGroupBox(errorGroupTitle, &dialog);
+    auto *errorLayout = new QVBoxLayout(errorGroup);
+    const HeaderCheckBlock errorMetadataBlock = headerCheckBlock(errorGroup, tr("Metaadatok:"), errorMetadata);
+    const HeaderCheckBlock errorColumnBlock = headerCheckBlock(errorGroup, tr("Adatok:"), errorColumns);
+    errorLayout->addWidget(errorMetadataBlock.group);
+    errorLayout->addWidget(errorColumnBlock.group);
+    groups->addWidget(displayGroup);
+    groups->addWidget(errorGroup);
+    layout->addLayout(groups);
+    layout->addStretch();
+
+    auto *buttons = new QDialogButtonBox(&dialog);
+    auto *cancelButton = buttons->addButton(tr("Mégsem"), QDialogButtonBox::RejectRole);
+    auto *okButton = buttons->addButton(tr("Ok"), QDialogButtonBox::AcceptRole);
+    okButton->setDefault(true);
+    if (auto *boxLayout = qobject_cast<QBoxLayout *>(buttons->layout())) {
+        while (boxLayout->count() > 0)
+            delete boxLayout->takeAt(0);
+        boxLayout->addWidget(cancelButton);
+        boxLayout->addWidget(okButton);
+        boxLayout->addStretch();
+    }
+    layout->addWidget(buttons);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const HeaderSettings columnHeaders = headersFromDialog(columns, columnBlock.boxes);
+    const HeaderSettings metadataHeaders = headersFromDialog(metadata, metadataBlock.boxes);
+    const HeaderSettings errorColumnHeaders = headersFromDialog(errorColumns, errorColumnBlock.boxes);
+    const HeaderSettings errorMetadataHeaders = headersFromDialog(errorMetadata, errorMetadataBlock.boxes);
+    emit displaySettingsAccepted(columnHeaders, metadataHeaders, errorColumnHeaders, errorMetadataHeaders);
+}
+
+void MainWindow::applyDisplayColumns(const HeaderSettings &columnHeaders,
+                                     const HeaderSettings &metadataHeaders,
+                                     const HeaderSettings &errorColumnHeaders,
+                                     const HeaderSettings &errorMetadataHeaders)
+{
+    Q_UNUSED(metadataHeaders);
+    Q_UNUSED(errorMetadataHeaders);
+    applyCheckedColumns(ui->tripTable, columnHeaders);
+    ui->tripTable->resizeRowsToContents();
+    applyCheckedColumns(ui->errorTable, errorColumnHeaders);
+    ui->errorTable->resizeRowsToContents();
 }
 
 void MainWindow::showHelp()

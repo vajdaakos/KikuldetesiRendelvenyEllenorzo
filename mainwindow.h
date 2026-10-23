@@ -58,6 +58,10 @@ protected:
 signals:
     void exportSettingsAccepted(const HeaderSettings &columnHeaders,
                                 const HeaderSettings &metadataHeaders);
+    void displaySettingsAccepted(const HeaderSettings &columnHeaders,
+                                 const HeaderSettings &metadataHeaders,
+                                 const HeaderSettings &errorColumnHeaders,
+                                 const HeaderSettings &errorMetadataHeaders);
 
 private slots:
     void openDirectory();
@@ -72,6 +76,11 @@ private slots:
     void showHelp();
     void showAbout();
     void showExportSettings();
+    void showDisplaySettings();
+    void applyDisplayColumns(const HeaderSettings &columnHeaders,
+                             const HeaderSettings &metadataHeaders,
+                             const HeaderSettings &errorColumnHeaders,
+                             const HeaderSettings &errorMetadataHeaders);
 
 private:
     void showTripColumns(QTableView *view);
