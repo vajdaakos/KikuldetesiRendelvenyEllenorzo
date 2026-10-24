@@ -29,13 +29,40 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QMessageBox>
+#include <QStandardPaths>
 #include <QWidget>
 
 namespace {
 
-QString settingsFilePath()
+QString bundledSettingsFilePath()
 {
     return QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("settings.json"));
+}
+
+QString settingsFilePath()
+{
+#if defined(Q_OS_MACOS)
+    // A .app bundle (és az App Translocation) gyakran csak olvasható; a mentés
+    // a felhasználói Application Support mappába kerül.
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(dir);
+    return QDir(dir).filePath(QStringLiteral("settings.json"));
+#else
+    return bundledSettingsFilePath();
+#endif
+}
+
+QString settingsFilePathForReading()
+{
+    const QString path = settingsFilePath();
+    if (QFileInfo::exists(path))
+        return path;
+#if defined(Q_OS_MACOS)
+    const QString bundled = bundledSettingsFilePath();
+    if (QFileInfo::exists(bundled))
+        return bundled;
+#endif
+    return path;
 }
 
 QJsonArray headerArray(const HeaderSettings &headers)
@@ -129,7 +156,7 @@ SettingsManager::SettingsManager(QObject &parent)
 
 void SettingsManager::readSettings()
 {
-    QFile file(settingsFilePath());
+    QFile file(settingsFilePathForReading());
     if (!file.open(QIODevice::ReadOnly)) {
         warnLoadFailed(this);
         return;
