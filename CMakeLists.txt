@@ -102,6 +102,15 @@ if(WIN32)
     target_sources(KrEllenorzo PRIVATE app.rc)
 endif()
 
+if(APPLE)
+    set_source_files_properties(icons/app.icns PROPERTIES
+        MACOSX_PACKAGE_LOCATION Resources)
+    target_sources(KrEllenorzo PRIVATE icons/app.icns)
+    set_target_properties(KrEllenorzo PROPERTIES
+        MACOSX_BUNDLE_GUI_IDENTIFIER hu.alu-fon.KrEllenorzo
+        MACOSX_BUNDLE_ICON_FILE app.icns)
+endif()
+
 target_link_libraries(KrEllenorzo
     PRIVATE
         Qt::Core
