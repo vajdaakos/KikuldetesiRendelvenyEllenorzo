@@ -20,6 +20,24 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 A program kiküldetési rendelvény PDF-eket tölt be egy könyvtárból, megmutatja az utakat, és kiszűri azokat, amelyeknél a kiindulópont és a cél megegyezik, az összköltség pedig nagyobb nullánál.
 
+## Telepítés macOS-en
+
+A macOS-es csomag a `KrEllenorzo.zip`. Ebben van a `KrEllenorzo.app` és a `LICENSE.md`. A csomag Apple silicon Macre készül. Csomagolja ki a zipet a Finderben, majd a `KrEllenorzo.app` bundle-t másolja az Alkalmazások mappába, vagy hagyja a kicsomagolt mappában. A programot a zipből közvetlenül ne indítsa.
+
+A macOS az internetről érkező fájlra karanténjelzést tesz. Indításkor a Gatekeeper ezt látja, és ellenőrzi az aláírást. Ehhez a csomaghoz nincs Apple Developer ID tanúsítvány, és az Apple nem hitelesítette. Az Apple ezt a tanúsítványt a Developer Program éves, 99 USD díja ellenében adná ki, és ezzel válna elérhetővé az aláírás. A program nyílt forráskódú és ingyenesen terjesztett, ez a díj a fejlesztő költségvetésébe nem fér bele. A dupla kattintást a rendszer ezért megtagadja. Az ablak azt írja, hogy a fejlesztő nem ellenőrizhető, vagy hogy az Apple nem tudja igazolni, hogy a program kártékony kódtól mentes.
+
+Az első indítást ennél a példánynál külön kell engedélyezni. Utána ugyanez a bundle dupla kattintással is elindul. Újra letöltött zip újra karanténba kerül, és az engedélyezést meg kell ismételni.
+
+- Control-kattintás vagy jobb kattintás a `KrEllenorzo.app` ikonon, majd **Megnyitás**. A figyelmeztető ablakban ismét **Megnyitás**.
+- Ha ez a menüpont hiányzik, nyissa meg a **Rendszerbeállítások → Adatvédelem és biztonság** oldalt (**System Settings → Privacy & Security**). Görgessen le a letiltott programhoz, és válassza a **Megnyitás mégis** (**Open Anyway**) gombot, majd erősítse meg az indítást.
+- Terminálból a karanténjelzés törölhető. Ezután a dupla kattintás elindul:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/KrEllenorzo.app
+```
+
+Ha a bundle máshol van, a parancsban azt az útvonalat adja meg.
+
 ## Könyvtár megnyitása
 
 A **Fájl → Könyvtár megnyitása…** menüponttal, vagy a `Ctrl+O` billentyűkombinációval válasszon könyvtárat. A tallózóban a mappák és a PDF-fájlok látszanak.

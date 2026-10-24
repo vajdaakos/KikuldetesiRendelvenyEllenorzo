@@ -103,12 +103,12 @@ if(WIN32)
 endif()
 
 if(APPLE)
-    set_source_files_properties(icons/app.icns PROPERTIES
+    set_source_files_properties(icons/CFBundleIconFile.icns PROPERTIES
         MACOSX_PACKAGE_LOCATION Resources)
-    target_sources(KrEllenorzo PRIVATE icons/app.icns)
+    target_sources(KrEllenorzo PRIVATE icons/CFBundleIconFile.icns)
     set_target_properties(KrEllenorzo PROPERTIES
         MACOSX_BUNDLE_GUI_IDENTIFIER hu.alu-fon.KrEllenorzo
-        MACOSX_BUNDLE_ICON_FILE app.icns)
+        MACOSX_BUNDLE_ICON_FILE CFBundleIconFile.icns)
 endif()
 
 target_link_libraries(KrEllenorzo

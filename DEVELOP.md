@@ -82,7 +82,7 @@ Az uic a `ui_mainwindow.h` fájlt a build-könyvtárba írja, és az idézőjele
 target_include_directories(KrEllenorzo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 ```
 
-Windowsos fordításkor az [app.rc](app.rc) az `icons/app.ico` fájlt köti a futtatható állományhoz. macOS-en az [icons/app.icns](icons/app.icns) a bundle `Resources` mappájába kerül: a `CFBundleIconFile` értéke `app.icns`, a `CFBundleIdentifier` pedig `hu.alu-fon.KrEllenorzo`. Az `.icns` az `icons/app.png` fájlból készül. A `install()` Windowson a binárist a prefix `bin` könyvtárába, macOS-en a `KrEllenorzo.app` bundle-t a prefix gyökerébe teszi. A `qt_generate_deploy_app_script` Qt-telepítő szkriptet készít, macOS-en ez a `macdeployqt`. Automatizált tesztcél nincs.
+Windowsos fordításkor az [app.rc](app.rc) az `icons/app.ico` fájlt köti a futtatható állományhoz. macOS-en az [icons/CFBundleIconFile.icns](icons/CFBundleIconFile.icns) a bundle `Resources` mappájába kerül. A `CFBundleIconFile` kulcs értéke `CFBundleIconFile.icns`. A fájl dummy ikon: egy 16×16-os szürke PNG egy `icns` burkolatban. A `CFBundleIdentifier` értéke `hu.alu-fon.KrEllenorzo`. A `install()` Windowson a binárist a prefix `bin` könyvtárába, macOS-en a `KrEllenorzo.app` bundle-t a prefix gyökerébe teszi. A `qt_generate_deploy_app_script` Qt-telepítő szkriptet készít, macOS-en ez a `macdeployqt`. Automatizált tesztcél nincs.
 
 ## Rétegek
 
